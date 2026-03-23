@@ -1,0 +1,200 @@
+const router = require('express').Router()
+const { PrismaClient } = require('@prisma/client')
+const auth = require('../middleware/auth')
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
+
+const prisma = new PrismaClient()
+
+const uploadDir = path.join(__dirname, '../../uploads')
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+
+const storage = multer.diskStorage({
+  destination: uploadDir,
+  filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+})
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } })
+
+// Get all chats for current user
+router.get('/', auth, async (req, res) => {
+  const memberships = await prisma.chatMember.findMany({
+    where: { userId: req.userId },
+    include: {
+      chat: {
+        include: {
+          messages: { orderBy: { createdAt: 'desc' }, take: 1, include: { sender: true } },
+          members: { include: { user: true } }
+        }
+      }
+    }
+  })
+
+  const chats = memberships.map(({ chat }) => {
+    const lastMessage = chat.messages[0] || null
+    const unreadCount = 0 // simplified
+    let name = chat.name
+    if (chat.type === 'private') {
+      const other = chat.members.find(m => m.userId !== req.userId)
+      name = other?.user.displayName || chat.name
+    }
+    return {
+      id: chat.id,
+      type: chat.type,
+      name,
+      avatar: chat.avatar,
+      lastMessage: lastMessage ? formatMessage(lastMessage) : null,
+      unreadCount,
+      createdAt: chat.createdAt
+    }
+  })
+
+  res.json(chats.sort((a, b) => {
+    const aTime = a.lastMessage?.createdAt || a.createdAt
+    const bTime = b.lastMessage?.createdAt || b.createdAt
+    return new Date(bTime) - new Date(aTime)
+  }))
+})
+
+// Create private chat
+router.post('/private', auth, async (req, res) => {
+  const { username } = req.body
+  const target = await prisma.user.findUnique({ where: { username } })
+  if (!target) return res.status(404).json({ message: 'Пользователь не найден' })
+  if (target.id === req.userId) return res.status(400).json({ message: 'Нельзя создать чат с собой' })
+
+  // Check if private chat already exists
+  const existing = await prisma.chat.findFirst({
+    where: {
+      type: 'private',
+      AND: [
+        { members: { some: { userId: req.userId } } },
+        { members: { some: { userId: target.id } } }
+      ]
+    },
+    include: { messages: { orderBy: { createdAt: 'desc' }, take: 1 }, members: { include: { user: true } } }
+  })
+
+  if (existing) {
+    const name = existing.members.find(m => m.userId !== req.userId)?.user.displayName || ''
+    return res.json({ id: existing.id, type: 'private', name, lastMessage: null, unreadCount: 0, createdAt: existing.createdAt })
+  }
+
+  const chat = await prisma.chat.create({
+    data: {
+      type: 'private',
+      name: `${req.userId}-${target.id}`,
+      members: { create: [{ userId: req.userId }, { userId: target.id }] }
+    },
+    include: { members: { include: { user: true } } }
+  })
+
+  const name = chat.members.find(m => m.userId !== req.userId)?.user.displayName || ''
+  res.json({ id: chat.id, type: 'private', name, lastMessage: null, unreadCount: 0, createdAt: chat.createdAt })
+})
+
+// Create group or channel
+router.post('/group', auth, async (req, res) => {
+  const { name, type } = req.body
+  if (!name) return res.status(400).json({ message: 'Укажите название' })
+
+  const chat = await prisma.chat.create({
+    data: {
+      type: type || 'group',
+      name,
+      members: { create: [{ userId: req.userId, role: 'owner' }] }
+    }
+  })
+
+  res.json({ id: chat.id, type: chat.type, name: chat.name, lastMessage: null, unreadCount: 0, createdAt: chat.createdAt })
+})
+
+// Get messages
+router.get('/:chatId/messages', auth, async (req, res) => {
+  const member = await prisma.chatMember.findUnique({
+    where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+  })
+  if (!member) return res.status(403).json({ message: 'Нет доступа' })
+
+  const messages = await prisma.message.findMany({
+    where: { chatId: req.params.chatId },
+    include: { sender: true },
+    orderBy: { createdAt: 'asc' },
+    take: 100
+  })
+
+  res.json(messages.map(formatMessage))
+})
+
+// Send text message
+router.post('/:chatId/messages', auth, async (req, res) => {
+  const { text } = req.body
+  const member = await prisma.chatMember.findUnique({
+    where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+  })
+  if (!member) return res.status(403).json({ message: 'Нет доступа' })
+
+  const message = await prisma.message.create({
+    data: { chatId: req.params.chatId, senderId: req.userId, text },
+    include: { sender: true }
+  })
+
+  const formatted = formatMessage(message)
+  req.app.get('io').to(`chat:${req.params.chatId}`).emit('message', formatted)
+  res.json(formatted)
+})
+
+// Send file message
+router.post('/:chatId/messages/file', auth, upload.single('file'), async (req, res) => {
+  const member = await prisma.chatMember.findUnique({
+    where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+  })
+  if (!member) return res.status(403).json({ message: 'Нет доступа' })
+
+  const file = req.file
+  if (!file) return res.status(400).json({ message: 'Файл не найден' })
+
+  const mime = file.mimetype
+  let fileType = 'file'
+  if (mime.startsWith('image/')) fileType = 'image'
+  else if (mime.startsWith('video/')) fileType = 'video'
+  else if (mime.startsWith('audio/')) fileType = 'audio'
+
+  const message = await prisma.message.create({
+    data: {
+      chatId: req.params.chatId,
+      senderId: req.userId,
+      fileUrl: file.filename,
+      fileType,
+      fileName: file.originalname
+    },
+    include: { sender: true }
+  })
+
+  const formatted = formatMessage(message)
+  req.app.get('io').to(`chat:${req.params.chatId}`).emit('message', formatted)
+  res.json(formatted)
+})
+
+function formatMessage(msg) {
+  return {
+    id: msg.id,
+    chatId: msg.chatId,
+    senderId: msg.senderId,
+    sender: msg.sender ? {
+      id: msg.sender.id,
+      username: msg.sender.username,
+      displayName: msg.sender.displayName,
+      avatar: msg.sender.avatar,
+      online: msg.sender.online
+    } : undefined,
+    text: msg.text,
+    fileUrl: msg.fileUrl,
+    fileType: msg.fileType,
+    fileName: msg.fileName,
+    read: msg.read,
+    createdAt: msg.createdAt
+  }
+}
+
+module.exports = router
