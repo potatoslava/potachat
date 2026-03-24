@@ -177,8 +177,17 @@ router.post('/:chatId/messages/file', auth, upload.single('file'), async (req, r
   res.json(formatted)
 })
 
-// Edit message
-router.patch('/:chatId/messages/:messageId', auth, async (req, res) => {
+// Delete chat
+router.delete('/:chatId', auth, async (req, res) => {
+  const member = await prisma.chatMember.findUnique({
+    where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+  })
+  if (!member) return res.status(403).json({ message: 'Нет доступа' })
+  await prisma.chat.delete({ where: { id: req.params.chatId } })
+  res.json({ success: true })
+})
+
+function formatMessage(msg) { auth, async (req, res) => {
   const { text } = req.body
   const message = await prisma.message.findUnique({ where: { id: req.params.messageId } })
   if (!message) return res.status(404).json({ message: 'Не найдено' })

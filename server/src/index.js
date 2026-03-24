@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken')
 const authRoutes = require('./routes/auth')
 const chatRoutes = require('./routes/chats')
 const searchRoutes = require('./routes/search')
+const userRoutes = require('./routes/users')
 const { getOrCreateBot } = require('./bot')
 
 const app = express()
@@ -23,6 +24,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 app.use('/api/auth', authRoutes)
 app.use('/api/chats', chatRoutes)
 app.use('/api/search', searchRoutes)
+app.use('/api/users', userRoutes)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // Serve built frontend
 const clientDist = path.join(__dirname, '../../client/dist')

@@ -20,11 +20,13 @@ model User {
 
   memberships ChatMember[]
   messages    Message[]
+  blocking    Block[]      @relation("blocker")
+  blockedBy   Block[]      @relation("blocked")
 }
 
 model Chat {
   id          String   @id @default(uuid())
-  type        String   // private | group | channel
+  type        String
   name        String
   avatar      String?
   description String?
@@ -38,7 +40,7 @@ model ChatMember {
   id     String @id @default(uuid())
   chatId String
   userId String
-  role   String @default("member") // member | admin | owner
+  role   String @default("member")
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -59,4 +61,15 @@ model Message {
 
   chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Block {
+  id        String @id @default(uuid())
+  blockerId String
+  blockedId String
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
 }
