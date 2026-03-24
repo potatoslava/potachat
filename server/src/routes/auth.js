@@ -5,7 +5,7 @@ const { PrismaClient } = require('@prisma/client')
 const { createWelcomeChat } = require('../bot')
 
 const prisma = new PrismaClient()
-const JWT_SECRET = process.env.JWT_SECRET || 'potachat_secret_key'
+const JWT_SECRET = process.env.JWT_SECRET || 'CocoDack_secret_key'
 
 router.post('/register', async (req, res) => {
   const { username, displayName, password } = req.body
@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
 
   const token = jwt.sign({ userId: user.id }, JWT_SECRET)
 
-  // Create welcome chat with PotaChatBot
+  // Create welcome chat with CocoDackBot
   createWelcomeChat(user.id).catch(console.error)
 
   res.json({ user: sanitize(user), token })

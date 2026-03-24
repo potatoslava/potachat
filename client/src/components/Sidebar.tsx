@@ -128,7 +128,7 @@ export default function Sidebar() {
 }
 
 function ChatItem({ chat, active, onClick }: { chat: Chat; active: boolean; onClick: () => void }) {
-  const isBot = chat.name === 'PotaChat'
+  const isBot = chat.name === 'CocoDack'
   return (
     <div
       onClick={onClick}

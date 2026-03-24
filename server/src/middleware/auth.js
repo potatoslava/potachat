@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken')
-const JWT_SECRET = process.env.JWT_SECRET || 'potachat_secret_key'
+const JWT_SECRET = process.env.JWT_SECRET || 'CocoDack_secret_key'
 
 module.exports = (req, res, next) => {
   const auth = req.headers.authorization

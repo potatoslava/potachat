@@ -3,9 +3,9 @@ const bcrypt = require('bcryptjs')
 
 const prisma = new PrismaClient()
 
-const BOT_USERNAME = 'PotaChatBot'
-const BOT_DISPLAY = 'PotaChat'
-const BOT_WELCOME = `👋 Привет! Я PotaChatBot — официальный бот мессенджера PotaChat.
+const BOT_USERNAME = 'CocoDackBot'
+const BOT_DISPLAY = 'CocoDack'
+const BOT_WELCOME = `👋 Привет! Я CocoDackBot — официальный бот мессенджера CocoDack.
 
 Здесь ты можешь:
 • Создавать личные чаты с друзьями
@@ -21,7 +21,7 @@ async function getOrCreateBot() {
     bot = await prisma.user.create({
       data: { username: BOT_USERNAME, displayName: BOT_DISPLAY, password, online: true }
     })
-    console.log('PotaChatBot created')
+    console.log('CocoDackBot created')
   }
   return bot
 }
