@@ -52,18 +52,22 @@ model ChatMember {
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  chatId    String
-  senderId  String
-  text      String?
-  fileUrl   String?
-  fileType  String?
-  fileName  String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  chatId      String
+  senderId    String
+  text        String?
+  fileUrl     String?
+  fileType    String?
+  fileName    String?
+  read        Boolean  @default(false)
+  edited      Boolean  @default(false)
+  replyToId   String?
+  createdAt   DateTime @default(now())
 
-  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender  User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo Message? @relation("replies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies Message[] @relation("replies")
 }
 
 model Block {

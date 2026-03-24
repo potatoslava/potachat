@@ -13,6 +13,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const { user } = useAuthStore()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [replyTo, setReplyTo] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : []
@@ -57,11 +58,11 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   const send = async () => {
     if (!text.trim() || !activeChat) return
-    const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text })
-    // Добавляем только локально, socket событие игнорируем для своих сообщений
+    const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text, replyToId: replyTo?.id })
     addMessage(activeChat.id, data)
     updateLastMessage(activeChat.id, data)
     setText('')
+    setReplyTo(null)
   }
 
   const onDrop = useCallback(async (files: File[]) => {
@@ -134,6 +135,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             msg={msg}
             isOwn={msg.senderId === user?.id}
             showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
+            onReply={() => setReplyTo(msg)}
             onEdit={async (text) => {
               const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text })
               editMessage(activeChat!.id, data)
@@ -149,6 +151,20 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
       {/* Input */}
       <div className="px-4 py-3 bg-header border-t border-border flex-shrink-0">
+        {/* Reply preview */}
+        {replyTo && (
+          <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-chat rounded-xl border-l-2 border-primary">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-primary font-medium">{replyTo.sender?.displayName || 'Сообщение'}</p>
+              <p className="text-xs text-muted truncate">{replyTo.text || (replyTo.fileType ? '📎 Файл' : '')}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="text-muted hover:text-white flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <label className="cursor-pointer text-muted hover:text-primary transition flex-shrink-0 pb-2">
             <input type="file" className="hidden" onChange={(e) => e.target.files && onDrop(Array.from(e.target.files))} />
@@ -182,10 +198,11 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   )
 }
 
-function MessageBubble({ msg, isOwn, showAvatar, onEdit, onDelete }: {
+function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
   msg: Message
   isOwn: boolean
   showAvatar: boolean
+  onReply: () => void
   onEdit: (text: string) => void
   onDelete: () => void
 }) {
@@ -208,34 +225,48 @@ function MessageBubble({ msg, isOwn, showAvatar, onEdit, onDelete }: {
         </div>
       )}
       <div className="relative">
-        {/* Context menu button */}
-        {isOwn && (
-          <div className={`absolute ${isOwn ? '-left-8' : '-right-8'} bottom-2 opacity-0 group-hover:opacity-100 transition`}>
-            <button onClick={() => setShowMenu(!showMenu)} className="text-muted hover:text-white">
+        {/* Action buttons on hover */}
+        <div className={`absolute ${isOwn ? '-left-16' : '-right-16'} bottom-2 opacity-0 group-hover:opacity-100 transition flex gap-1`}>
+          <button onClick={onReply} className="text-muted hover:text-white p-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+          {isOwn && (
+            <button onClick={() => setShowMenu(!showMenu)} className="text-muted hover:text-white p-1">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
               </svg>
             </button>
-            {showMenu && (
-              <div className="absolute bottom-6 right-0 bg-sidebar-hover rounded-xl shadow-xl z-50 w-36 py-1 border border-border">
-                {msg.text && (
-                  <button onClick={() => { setEditing(true); setShowMenu(false) }}
-                    className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">
-                    ✏️ Изменить
-                  </button>
-                )}
-                <button onClick={() => { onDelete(); setShowMenu(false) }}
-                  className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">
-                  🗑️ Удалить
-                </button>
-              </div>
+          )}
+        </div>
+
+        {showMenu && (
+          <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-sidebar-hover rounded-xl shadow-xl z-50 w-36 py-1 border border-border`}>
+            {msg.text && (
+              <button onClick={() => { setEditing(true); setShowMenu(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">
+                ✏️ Изменить
+              </button>
             )}
+            <button onClick={() => { onDelete(); setShowMenu(false) }}
+              className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">
+              🗑️ Удалить
+            </button>
           </div>
         )}
 
         <div className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3 py-2 ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}>
           {!isOwn && showAvatar && (
             <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>
+          )}
+
+          {/* Reply quote */}
+          {msg.replyTo && (
+            <div className="border-l-2 border-primary pl-2 mb-2 opacity-80">
+              <p className="text-xs text-primary font-medium">{msg.replyTo.sender?.displayName}</p>
+              <p className="text-xs text-muted truncate">{msg.replyTo.text || (msg.replyTo.fileType ? '📎 Файл' : '')}</p>
+            </div>
           )}
           {isImage && (
             <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1 cursor-pointer" alt={msg.fileName} />

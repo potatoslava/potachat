@@ -20,6 +20,13 @@ export interface Message {
   createdAt: string
   read: boolean
   edited?: boolean
+  replyTo?: {
+    id: string
+    text?: string
+    fileType?: string
+    fileName?: string
+    sender?: { displayName: string }
+  }
 }
 
 export interface Chat {

@@ -131,7 +131,7 @@ router.get('/:chatId/messages', auth, async (req, res) => {
 
   const messages = await prisma.message.findMany({
     where: { chatId: req.params.chatId },
-    include: { sender: true },
+    include: { sender: true, replyTo: { include: { sender: true } } },
     orderBy: { createdAt: 'asc' },
     take: 100
   })
@@ -140,15 +140,15 @@ router.get('/:chatId/messages', auth, async (req, res) => {
 
 // Send text message
 router.post('/:chatId/messages', auth, async (req, res) => {
-  const { text } = req.body
+  const { text, replyToId } = req.body
   const member = await prisma.chatMember.findUnique({
     where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
   })
   if (!member) return res.status(403).json({ message: 'Нет доступа' })
 
   const message = await prisma.message.create({
-    data: { chatId: req.params.chatId, senderId: req.userId, text },
-    include: { sender: true }
+    data: { chatId: req.params.chatId, senderId: req.userId, text, ...(replyToId && { replyToId }) },
+    include: { sender: true, replyTo: { include: { sender: true } } }
   })
 
   const formatted = formatMessage(message)
@@ -238,6 +238,14 @@ function formatMessage(msg) {
     fileType: msg.fileType,
     fileName: msg.fileName,
     read: msg.read,
+    edited: msg.edited,
+    replyTo: msg.replyTo ? {
+      id: msg.replyTo.id,
+      text: msg.replyTo.text,
+      fileType: msg.replyTo.fileType,
+      fileName: msg.replyTo.fileName,
+      sender: msg.replyTo.sender ? { displayName: msg.replyTo.sender.displayName } : undefined
+    } : undefined,
     createdAt: msg.createdAt
   }
 }
