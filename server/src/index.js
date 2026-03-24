@@ -10,6 +10,8 @@ const chatRoutes = require('./routes/chats')
 const searchRoutes = require('./routes/search')
 const userRoutes = require('./routes/users')
 const { getOrCreateBot } = require('./bot')
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
 
 const app = express()
 const server = http.createServer(app)
@@ -74,7 +76,9 @@ io.on('connection', async (socket) => {
 app.set('io', io)
 
 const PORT = process.env.PORT || 5000
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`CocoDack server running on port ${PORT}`)
+  // Reset all users to offline on startup
+  await prisma.user.updateMany({ data: { online: false } })
   getOrCreateBot().catch(console.error)
 })

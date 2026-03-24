@@ -16,6 +16,22 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } })
 
+// Get online statuses for chat members
+router.get('/online', auth, async (req, res) => {
+  const memberships = await prisma.chatMember.findMany({
+    where: { userId: req.userId },
+    include: { chat: { include: { members: true } } }
+  })
+  const userIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, online: true }
+  })
+  const statuses = {}
+  users.forEach(u => { statuses[u.id] = u.online })
+  res.json(statuses)
+})
+
 // Get all chats
 router.get('/', auth, async (req, res) => {
   const memberships = await prisma.chatMember.findMany({
