@@ -15,6 +15,14 @@ body {
   overflow: hidden;
 }
 
+/* Safe area для мобильных браузеров (Яндекс, Safari и т.д.) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }
