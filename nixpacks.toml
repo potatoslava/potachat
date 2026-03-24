@@ -1,16 +1,16 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm-9_x"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "cd client && npm install",
-  "cd server && npm install"
+  "npm install --prefix client",
+  "npm install --prefix server"
 ]
 
 [phases.build]
 cmds = [
-  "cd client && npm run build",
-  "cd server && npx prisma generate"
+  "npm run build --prefix client",
+  "npx prisma generate --schema=server/prisma/schema.prisma"
 ]
 
 [start]
