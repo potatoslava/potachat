@@ -22,6 +22,8 @@ export default function ChatWindow() {
     api.get(`/chats/${activeChat.id}/messages`).then(({ data }) => {
       setMessages(activeChat.id, data)
     })
+    socket.emit('join-chat', activeChat.id)
+    return () => { socket.emit('leave-chat', activeChat.id) }
   }, [activeChat?.id])
 
   useEffect(() => {
