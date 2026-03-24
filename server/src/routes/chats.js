@@ -45,6 +45,7 @@ router.get('/', auth, async (req, res) => {
       avatar: chat.avatar,
       lastMessage: lastMessage ? formatMessage(lastMessage) : null,
       unreadCount,
+      members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })),
       createdAt: chat.createdAt
     }
   })

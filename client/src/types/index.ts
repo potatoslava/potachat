@@ -28,7 +28,7 @@ export interface Chat {
   name: string
   avatar?: string
   description?: string
-  members?: User[]
+  members?: { id: string; username: string; displayName: string }[]
   lastMessage?: Message
   unreadCount: number
   createdAt: string

@@ -46,15 +46,24 @@ io.use((socket, next) => {
   }
 })
 
-io.on('connection', (socket) => {
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
+
+io.on('connection', async (socket) => {
   socket.join(`user:${socket.userId}`)
   console.log(`User connected: ${socket.userId}`)
+
+  // Mark online
+  await prisma.user.update({ where: { id: socket.userId }, data: { online: true } })
+  io.emit('user:status', { userId: socket.userId, online: true })
 
   socket.on('join-chat', (chatId) => socket.join(`chat:${chatId}`))
   socket.on('leave-chat', (chatId) => socket.leave(`chat:${chatId}`))
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`User disconnected: ${socket.userId}`)
+    await prisma.user.update({ where: { id: socket.userId }, data: { online: false, lastSeen: new Date() } })
+    io.emit('user:status', { userId: socket.userId, online: false })
   })
 })
 

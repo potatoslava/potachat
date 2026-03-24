@@ -5,6 +5,7 @@ interface ChatState {
   chats: Chat[]
   activeChat: Chat | null
   messages: Record<string, Message[]>
+  onlineUsers: Record<string, boolean>
   setChats: (chats: Chat[]) => void
   setActiveChat: (chat: Chat | null) => void
   addMessage: (chatId: string, message: Message) => void
@@ -12,12 +13,14 @@ interface ChatState {
   updateLastMessage: (chatId: string, message: Message) => void
   editMessage: (chatId: string, message: Message) => void
   deleteMessage: (chatId: string, messageId: string) => void
+  setUserOnline: (userId: string, online: boolean) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
   chats: [],
   activeChat: null,
   messages: {},
+  onlineUsers: {},
   setChats: (chats) => set({ chats }),
   setActiveChat: (chat) => set({ activeChat: chat }),
   addMessage: (chatId, message) =>
@@ -52,5 +55,9 @@ export const useChatStore = create<ChatState>((set) => ({
         ...state.messages,
         [chatId]: (state.messages[chatId] || []).filter((m) => m.id !== messageId),
       },
+    })),
+  setUserOnline: (userId, online) =>
+    set((state) => ({
+      onlineUsers: { ...state.onlineUsers, [userId]: online },
     })),
 }))
