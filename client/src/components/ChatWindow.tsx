@@ -209,6 +209,7 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
   const isImage = msg.fileType === 'image'
   const isVideo = msg.fileType === 'video'
   const [showMenu, setShowMenu] = useState(false)
+  const [showActions, setShowActions] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.text || '')
 
@@ -218,22 +219,22 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
   }
 
   return (
-    <div className={`flex items-end gap-2 group ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
       {!isOwn && (
         <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
           {msg.sender?.displayName?.[0]?.toUpperCase()}
         </div>
       )}
       <div className="relative">
-        {/* Action buttons on hover */}
-        <div className={`absolute ${isOwn ? '-left-16' : '-right-16'} bottom-2 opacity-0 group-hover:opacity-100 transition flex gap-1`}>
-          <button onClick={onReply} className="text-muted hover:text-white p-1">
+        {/* Action buttons — видны по клику на сообщение */}
+        <div className={`absolute ${isOwn ? '-left-16' : '-right-16'} bottom-2 flex gap-1 transition-opacity ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <button onClick={(e) => { e.stopPropagation(); onReply(); setShowActions(false) }} className="text-muted hover:text-white p-1">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
           </button>
           {isOwn && (
-            <button onClick={() => setShowMenu(!showMenu)} className="text-muted hover:text-white p-1">
+            <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); setShowActions(false) }} className="text-muted hover:text-white p-1">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
               </svg>
@@ -256,7 +257,7 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
           </div>
         )}
 
-        <div className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3 py-2 ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}>
+        <div onClick={() => setShowActions(v => !v)} className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3 py-2 cursor-pointer ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}>
           {!isOwn && showAvatar && (
             <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>
           )}
