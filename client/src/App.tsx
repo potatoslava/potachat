@@ -33,7 +33,7 @@ export default function App() {
   if (!user || !token) return <AuthPage />
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex overflow-hidden" style={{ height: '100dvh' }}>
       {/* Mobile: show sidebar when no active chat, show chat when active */}
       <div className={`${activeChat ? 'hidden md:flex' : 'flex'} w-full md:w-80`}>
         <Sidebar />

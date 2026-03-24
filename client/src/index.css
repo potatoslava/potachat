@@ -23,6 +23,12 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Используем динамическую высоту viewport чтобы браузерная панель не перекрывала контент */
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }

@@ -97,7 +97,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <div {...getRootProps()} className="flex-1 flex flex-col bg-chat h-screen relative">
+    <div {...getRootProps()} className="flex-1 flex flex-col bg-chat relative" style={{ height: '100dvh' }}>
       <input {...getInputProps()} />
 
       {isDragActive && (
