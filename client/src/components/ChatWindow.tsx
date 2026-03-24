@@ -33,6 +33,8 @@ export default function ChatWindow() {
   useEffect(() => {
     const onMessage = (msg: Message) => {
       if (msg.chatId === activeChat?.id) {
+        // Пропускаем если это наше сообщение (уже добавлено через API)
+        if (msg.senderId === user?.id) return
         addMessage(msg.chatId, msg)
         updateLastMessage(msg.chatId, msg)
       }
@@ -56,6 +58,7 @@ export default function ChatWindow() {
   const send = async () => {
     if (!text.trim() || !activeChat) return
     const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text })
+    // Добавляем только локально, socket событие игнорируем для своих сообщений
     addMessage(activeChat.id, data)
     updateLastMessage(activeChat.id, data)
     setText('')
