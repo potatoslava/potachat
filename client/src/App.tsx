@@ -9,19 +9,17 @@ import ChatWindow from './components/ChatWindow'
 
 export default function App() {
   const { user, token } = useAuthStore()
+  const { activeChat, setActiveChat } = useChatStore()
   const setUserOnline = useChatStore((s) => s.setUserOnline)
 
   useEffect(() => {
     if (token) {
       socket.connect()
-
-      // Load initial online statuses from DB
       api.get('/chats/online').then(({ data }) => {
         Object.entries(data).forEach(([userId, online]) => {
           setUserOnline(userId, online as boolean)
         })
       }).catch(() => {})
-
       socket.on('user:status', ({ userId, online }: { userId: string; online: boolean }) => {
         setUserOnline(userId, online)
       })
@@ -36,8 +34,13 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <ChatWindow />
+      {/* Mobile: show sidebar when no active chat, show chat when active */}
+      <div className={`${activeChat ? 'hidden md:flex' : 'flex'} w-full md:w-80`}>
+        <Sidebar />
+      </div>
+      <div className={`${activeChat ? 'flex' : 'hidden md:flex'} flex-1`}>
+        <ChatWindow onBack={() => setActiveChat(null)} />
+      </div>
     </div>
   )
 }

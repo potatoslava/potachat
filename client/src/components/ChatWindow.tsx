@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
 
-export default function ChatWindow() {
+export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage } = useChatStore()
   const { user } = useAuthStore()
   const [text, setText] = useState('')
@@ -108,7 +108,14 @@ export default function ChatWindow() {
 
       {/* Chat header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-header border-b border-border flex-shrink-0">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">
+        {onBack && (
+          <button onClick={onBack} className="md:hidden text-muted hover:text-white mr-1 flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold flex-shrink-0">
           {activeChat.type === 'channel' ? '#' : activeChat.name[0]?.toUpperCase()}
         </div>
         <div>
