@@ -17,6 +17,9 @@ model User {
   online      Boolean  @default(false)
   lastSeen    DateTime @default(now())
   createdAt   DateTime @default(now())
+  banned      Boolean  @default(false)
+  frozen      Boolean  @default(false)
+  bannedIp    String?
 
   memberships ChatMember[]
   messages    Message[]
@@ -72,4 +75,11 @@ model Block {
   blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
 }

@@ -36,6 +36,9 @@ router.post('/login', async (req, res) => {
   const ok = await bcrypt.compare(password, user.password)
   if (!ok) return res.status(400).json({ message: 'Неверный пароль' })
 
+  if (user.banned) return res.status(403).json({ message: 'Аккаунт заблокирован администратором' })
+  if (user.frozen) return res.status(403).json({ message: 'Аккаунт заморожен. Обратитесь в поддержку' })
+
   const token = jwt.sign({ userId: user.id }, JWT_SECRET)
 
   // Create welcome chat if not exists yet
