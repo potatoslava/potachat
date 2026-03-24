@@ -15,8 +15,8 @@ router.get('/', auth, async (req, res) => {
         { id: { not: req.userId } },
         {
           OR: [
-            { username: { contains: q } },
-            { displayName: { contains: q } }
+            { username: { contains: q, mode: 'insensitive' } },
+            { displayName: { contains: q, mode: 'insensitive' } }
           ]
         }
       ]
