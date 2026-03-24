@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } })
 
-// Get all chats for current user
+// Get all chats
 router.get('/', auth, async (req, res) => {
   const memberships = await prisma.chatMember.findMany({
     where: { userId: req.userId },
@@ -32,7 +32,6 @@ router.get('/', auth, async (req, res) => {
 
   const chats = memberships.map(({ chat }) => {
     const lastMessage = chat.messages[0] || null
-    const unreadCount = 0 // simplified
     let name = chat.name
     if (chat.type === 'private') {
       const other = chat.members.find(m => m.userId !== req.userId)
@@ -44,7 +43,7 @@ router.get('/', auth, async (req, res) => {
       name,
       avatar: chat.avatar,
       lastMessage: lastMessage ? formatMessage(lastMessage) : null,
-      unreadCount,
+      unreadCount: 0,
       members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })),
       createdAt: chat.createdAt
     }
@@ -64,7 +63,6 @@ router.post('/private', auth, async (req, res) => {
   if (!target) return res.status(404).json({ message: 'Пользователь не найден' })
   if (target.id === req.userId) return res.status(400).json({ message: 'Нельзя создать чат с собой' })
 
-  // Check if private chat already exists
   const existing = await prisma.chat.findFirst({
     where: {
       type: 'private',
@@ -73,12 +71,12 @@ router.post('/private', auth, async (req, res) => {
         { members: { some: { userId: target.id } } }
       ]
     },
-    include: { messages: { orderBy: { createdAt: 'desc' }, take: 1 }, members: { include: { user: true } } }
+    include: { members: { include: { user: true } } }
   })
 
   if (existing) {
     const name = existing.members.find(m => m.userId !== req.userId)?.user.displayName || ''
-    return res.json({ id: existing.id, type: 'private', name, lastMessage: null, unreadCount: 0, createdAt: existing.createdAt })
+    return res.json({ id: existing.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: existing.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })), createdAt: existing.createdAt })
   }
 
   const chat = await prisma.chat.create({
@@ -91,14 +89,13 @@ router.post('/private', auth, async (req, res) => {
   })
 
   const name = chat.members.find(m => m.userId !== req.userId)?.user.displayName || ''
-  res.json({ id: chat.id, type: 'private', name, lastMessage: null, unreadCount: 0, createdAt: chat.createdAt })
+  res.json({ id: chat.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })), createdAt: chat.createdAt })
 })
 
 // Create group or channel
 router.post('/group', auth, async (req, res) => {
   const { name, type } = req.body
   if (!name) return res.status(400).json({ message: 'Укажите название' })
-
   const chat = await prisma.chat.create({
     data: {
       type: type || 'group',
@@ -106,8 +103,7 @@ router.post('/group', auth, async (req, res) => {
       members: { create: [{ userId: req.userId, role: 'owner' }] }
     }
   })
-
-  res.json({ id: chat.id, type: chat.type, name: chat.name, lastMessage: null, unreadCount: 0, createdAt: chat.createdAt })
+  res.json({ id: chat.id, type: chat.type, name: chat.name, lastMessage: null, unreadCount: 0, members: [], createdAt: chat.createdAt })
 })
 
 // Get messages
@@ -123,7 +119,6 @@ router.get('/:chatId/messages', auth, async (req, res) => {
     orderBy: { createdAt: 'asc' },
     take: 100
   })
-
   res.json(messages.map(formatMessage))
 })
 
@@ -162,13 +157,7 @@ router.post('/:chatId/messages/file', auth, upload.single('file'), async (req, r
   else if (mime.startsWith('audio/')) fileType = 'audio'
 
   const message = await prisma.message.create({
-    data: {
-      chatId: req.params.chatId,
-      senderId: req.userId,
-      fileUrl: file.filename,
-      fileType,
-      fileName: file.originalname
-    },
+    data: { chatId: req.params.chatId, senderId: req.userId, fileUrl: file.filename, fileType, fileName: file.originalname },
     include: { sender: true }
   })
 
@@ -177,17 +166,8 @@ router.post('/:chatId/messages/file', auth, upload.single('file'), async (req, r
   res.json(formatted)
 })
 
-// Delete chat
-router.delete('/:chatId', auth, async (req, res) => {
-  const member = await prisma.chatMember.findUnique({
-    where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
-  })
-  if (!member) return res.status(403).json({ message: 'Нет доступа' })
-  await prisma.chat.delete({ where: { id: req.params.chatId } })
-  res.json({ success: true })
-})
-
-function formatMessage(msg) { auth, async (req, res) => {
+// Edit message
+router.patch('/:chatId/messages/:messageId', auth, async (req, res) => {
   const { text } = req.body
   const message = await prisma.message.findUnique({ where: { id: req.params.messageId } })
   if (!message) return res.status(404).json({ message: 'Не найдено' })
@@ -212,6 +192,16 @@ router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
 
   await prisma.message.delete({ where: { id: req.params.messageId } })
   req.app.get('io').to(`chat:${req.params.chatId}`).emit('message:delete', { id: req.params.messageId, chatId: req.params.chatId })
+  res.json({ success: true })
+})
+
+// Delete chat
+router.delete('/:chatId', auth, async (req, res) => {
+  const member = await prisma.chatMember.findUnique({
+    where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+  })
+  if (!member) return res.status(403).json({ message: 'Нет доступа' })
+  await prisma.chat.delete({ where: { id: req.params.chatId } })
   res.json({ success: true })
 })
 
