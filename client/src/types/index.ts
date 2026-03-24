@@ -19,6 +19,7 @@ export interface Message {
   fileName?: string
   createdAt: string
   read: boolean
+  edited?: boolean
 }
 
 export interface Chat {

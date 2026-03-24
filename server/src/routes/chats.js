@@ -176,6 +176,35 @@ router.post('/:chatId/messages/file', auth, upload.single('file'), async (req, r
   res.json(formatted)
 })
 
+// Edit message
+router.patch('/:chatId/messages/:messageId', auth, async (req, res) => {
+  const { text } = req.body
+  const message = await prisma.message.findUnique({ where: { id: req.params.messageId } })
+  if (!message) return res.status(404).json({ message: 'Не найдено' })
+  if (message.senderId !== req.userId) return res.status(403).json({ message: 'Нет доступа' })
+
+  const updated = await prisma.message.update({
+    where: { id: req.params.messageId },
+    data: { text },
+    include: { sender: true }
+  })
+
+  const formatted = { ...formatMessage(updated), edited: true }
+  req.app.get('io').to(`chat:${req.params.chatId}`).emit('message:edit', formatted)
+  res.json(formatted)
+})
+
+// Delete message
+router.delete('/:chatId/messages/:messageId', auth, async (req, res) => {
+  const message = await prisma.message.findUnique({ where: { id: req.params.messageId } })
+  if (!message) return res.status(404).json({ message: 'Не найдено' })
+  if (message.senderId !== req.userId) return res.status(403).json({ message: 'Нет доступа' })
+
+  await prisma.message.delete({ where: { id: req.params.messageId } })
+  req.app.get('io').to(`chat:${req.params.chatId}`).emit('message:delete', { id: req.params.messageId, chatId: req.params.chatId })
+  res.json({ success: true })
+})
+
 function formatMessage(msg) {
   return {
     id: msg.id,

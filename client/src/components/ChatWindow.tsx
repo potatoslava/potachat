@@ -9,7 +9,7 @@ import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
 
 export default function ChatWindow() {
-  const { activeChat, messages, addMessage, setMessages, updateLastMessage } = useChatStore()
+  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage } = useChatStore()
   const { user } = useAuthStore()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -29,14 +29,26 @@ export default function ChatWindow() {
   }, [chatMessages.length])
 
   useEffect(() => {
-    const handler = (msg: Message) => {
+    const onMessage = (msg: Message) => {
       if (msg.chatId === activeChat?.id) {
         addMessage(msg.chatId, msg)
         updateLastMessage(msg.chatId, msg)
       }
     }
-    socket.on('message', handler)
-    return () => { socket.off('message', handler) }
+    const onEdit = (msg: Message) => {
+      if (msg.chatId === activeChat?.id) editMessage(msg.chatId, msg)
+    }
+    const onDelete = ({ id, chatId }: { id: string; chatId: string }) => {
+      if (chatId === activeChat?.id) deleteMessage(chatId, id)
+    }
+    socket.on('message', onMessage)
+    socket.on('message:edit', onEdit)
+    socket.on('message:delete', onDelete)
+    return () => {
+      socket.off('message', onMessage)
+      socket.off('message:edit', onEdit)
+      socket.off('message:delete', onDelete)
+    }
   }, [activeChat?.id])
 
   const send = async () => {
@@ -105,9 +117,20 @@ export default function ChatWindow() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {chatMessages.map((msg, i) => (
-          <MessageBubble key={msg.id} msg={msg} isOwn={msg.senderId === user?.id} showAvatar={
-            i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId
-          } />
+          <MessageBubble
+            key={msg.id}
+            msg={msg}
+            isOwn={msg.senderId === user?.id}
+            showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
+            onEdit={async (text) => {
+              const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text })
+              editMessage(activeChat!.id, data)
+            }}
+            onDelete={async () => {
+              await api.delete(`/chats/${activeChat!.id}/messages/${msg.id}`)
+              deleteMessage(activeChat!.id, msg.id)
+            }}
+          />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -147,40 +170,96 @@ export default function ChatWindow() {
   )
 }
 
-function MessageBubble({ msg, isOwn, showAvatar }: { msg: Message; isOwn: boolean; showAvatar: boolean }) {
+function MessageBubble({ msg, isOwn, showAvatar, onEdit, onDelete }: {
+  msg: Message
+  isOwn: boolean
+  showAvatar: boolean
+  onEdit: (text: string) => void
+  onDelete: () => void
+}) {
   const isImage = msg.fileType === 'image'
   const isVideo = msg.fileType === 'video'
+  const [showMenu, setShowMenu] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(msg.text || '')
+
+  const submitEdit = () => {
+    if (editText.trim() && editText !== msg.text) onEdit(editText.trim())
+    setEditing(false)
+  }
 
   return (
-    <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex items-end gap-2 group ${isOwn ? 'flex-row-reverse' : ''}`}>
       {!isOwn && (
         <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
           {msg.sender?.displayName?.[0]?.toUpperCase()}
         </div>
       )}
-      <div className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3 py-2 ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}>
-        {!isOwn && showAvatar && (
-          <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>
+      <div className="relative">
+        {/* Context menu button */}
+        {isOwn && (
+          <div className={`absolute ${isOwn ? '-left-8' : '-right-8'} bottom-2 opacity-0 group-hover:opacity-100 transition`}>
+            <button onClick={() => setShowMenu(!showMenu)} className="text-muted hover:text-white">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
+            </button>
+            {showMenu && (
+              <div className="absolute bottom-6 right-0 bg-sidebar-hover rounded-xl shadow-xl z-50 w-36 py-1 border border-border">
+                {msg.text && (
+                  <button onClick={() => { setEditing(true); setShowMenu(false) }}
+                    className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">
+                    ✏️ Изменить
+                  </button>
+                )}
+                <button onClick={() => { onDelete(); setShowMenu(false) }}
+                  className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">
+                  🗑️ Удалить
+                </button>
+              </div>
+            )}
+          </div>
         )}
-        {isImage && (
-          <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1 cursor-pointer" alt={msg.fileName} />
-        )}
-        {isVideo && (
-          <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />
-        )}
-        {msg.fileType && !isImage && !isVideo && (
-          <a href={`/uploads/${msg.fileUrl}`} download={msg.fileName} className="flex items-center gap-2 text-primary text-sm hover:underline mb-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            {msg.fileName}
-          </a>
-        )}
-        {msg.text && <p className="text-sm text-white whitespace-pre-wrap break-words">{msg.text}</p>}
-        <p className={`text-xs mt-1 ${isOwn ? 'text-right text-blue-300/60' : 'text-muted'}`}>
-          {format(new Date(msg.createdAt), 'HH:mm', { locale: ru })}
-          {isOwn && <span className="ml-1">{msg.read ? '✓✓' : '✓'}</span>}
-        </p>
+
+        <div className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3 py-2 ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}>
+          {!isOwn && showAvatar && (
+            <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>
+          )}
+          {isImage && (
+            <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1 cursor-pointer" alt={msg.fileName} />
+          )}
+          {isVideo && (
+            <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />
+          )}
+          {msg.fileType && !isImage && !isVideo && (
+            <a href={`/uploads/${msg.fileUrl}`} download={msg.fileName} className="flex items-center gap-2 text-primary text-sm hover:underline mb-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {msg.fileName}
+            </a>
+          )}
+          {editing ? (
+            <div className="flex gap-1">
+              <input
+                autoFocus
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') submitEdit(); if (e.key === 'Escape') setEditing(false) }}
+                className="flex-1 bg-transparent text-sm text-white focus:outline-none border-b border-primary"
+              />
+              <button onClick={submitEdit} className="text-primary text-xs">✓</button>
+              <button onClick={() => setEditing(false)} className="text-muted text-xs">✕</button>
+            </div>
+          ) : (
+            msg.text && <p className="text-sm text-white whitespace-pre-wrap break-words">{msg.text}</p>
+          )}
+          <p className={`text-xs mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-blue-300/60' : 'text-muted'}`}>
+            {msg.edited && <span className="italic">изменено</span>}
+            {format(new Date(msg.createdAt), 'HH:mm', { locale: ru })}
+            {isOwn && <span>{msg.read ? '✓✓' : '✓'}</span>}
+          </p>
+        </div>
       </div>
     </div>
   )
