@@ -2,19 +2,11 @@ const router = require('express').Router()
 const { PrismaClient } = require('@prisma/client')
 const auth = require('../middleware/auth')
 const multer = require('multer')
-const path = require('path')
-const fs = require('fs')
 
 const prisma = new PrismaClient()
 
-const uploadDir = path.join(__dirname, '../../uploads/avatars')
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
-
-const storage = multer.diskStorage({
-  destination: uploadDir,
-  filename: (_, file, cb) => cb(null, `avatar-${Date.now()}${path.extname(file.originalname)}`)
-})
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } })
+// Храним в памяти, не на диске — потом сохраняем как base64 в БД
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } })
 
 // Get my profile
 router.get('/me', auth, async (req, res) => {
@@ -35,17 +27,16 @@ router.patch('/me', auth, async (req, res) => {
   res.json(rest)
 })
 
-// Upload avatar
+// Upload avatar — сохраняем как base64 data URL прямо в БД
 router.post('/me/avatar', auth, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'Файл не найден' })
-  const avatarUrl = `/uploads/avatars/${req.file.filename}`
+  const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
   const user = await prisma.user.update({
     where: { id: req.userId },
-    data: { avatar: avatarUrl }
+    data: { avatar: base64 }
   })
   const { password, ...rest } = user
-  // Рассылаем всем что аватар обновился
-  req.app.get('io').emit('user:avatar', { userId: user.id, avatar: avatarUrl })
+  req.app.get('io').emit('user:avatar', { userId: user.id, avatar: base64 })
   res.json(rest)
 })
 
