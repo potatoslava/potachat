@@ -9,7 +9,7 @@ import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
 
 export default function ChatWindow({ onBack }: { onBack?: () => void }) {
-  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage } = useChatStore()
+  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers } = useChatStore()
   const { user } = useAuthStore()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -106,7 +106,12 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         <div>
           <p className="font-semibold text-sm">{activeChat.name}</p>
           <p className="text-xs text-muted">
-            {activeChat.type === 'private' ? 'в сети' : activeChat.type === 'group' ? 'группа' : 'канал'}
+            {activeChat.type === 'private'
+              ? (() => {
+                  const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
+                  return otherId && onlineUsers[otherId] ? '🟢 в сети' : '⚫ не в сети'
+                })()
+              : activeChat.type === 'group' ? 'группа' : 'канал'}
           </p>
         </div>
       </div>

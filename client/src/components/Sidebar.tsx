@@ -109,11 +109,16 @@ export default function Sidebar({ onOpenAdmin, showAdmin }: { onOpenAdmin: () =>
 
 function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void }) {
   const isBot = chat.name === 'CocoDackBot'
+  const { onlineUsers } = useChatStore()
+  const { user } = useAuthStore()
+  // для приватного чата берём id собеседника
+  const otherId = chat.type === 'private' ? chat.members?.find(m => m.id !== user?.id)?.id : null
+  const isOnline = otherId ? !!onlineUsers[otherId] : false
   return (
     <div onClick={onClick} onContextMenu={onContextMenu} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-sidebar-hover ${active ? 'bg-sidebar-hover' : ''}`}>
       <div className="relative flex-shrink-0">
         {chat.avatar ? <img src={chat.avatar} className="w-12 h-12 rounded-full object-cover" alt="" /> : <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">{chat.type === 'channel' ? '#' : chat.name[0]?.toUpperCase()}</div>}
-        {chat.type === 'private' && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-sidebar" />}
+        {chat.type === 'private' && isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-sidebar" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline">
