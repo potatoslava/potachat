@@ -82,6 +82,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     )
   }
 
+  const BOT_NAMES = ['CocoDackBot', 'CocoDack', 'PotaChatBot', 'PotaChat']
+  const isBot = activeChat.type === 'private' && activeChat.members?.some(m => BOT_NAMES.includes(m.username || ''))
+
   return (
     <div {...getRootProps()} className="flex-1 flex flex-col bg-chat relative" style={{ height: '100dvh' }}>
       <input {...getInputProps()} />
@@ -140,43 +143,49 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
       {/* Input */}
       <div className="px-4 py-3 bg-header border-t border-border flex-shrink-0">
-        {replyTo && (
-          <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-chat rounded-xl border-l-2 border-primary">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-primary font-medium">{replyTo.sender?.displayName || 'Сообщение'}</p>
-              <p className="text-xs text-muted truncate">{replyTo.text || (replyTo.fileType ? '📎 Файл' : '')}</p>
+        {isBot ? (
+          <div className="text-center text-muted text-sm py-1">Это бот — ответить нельзя</div>
+        ) : (
+          <>
+            {replyTo && (
+              <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-chat rounded-xl border-l-2 border-primary">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-primary font-medium">{replyTo.sender?.displayName || 'Сообщение'}</p>
+                  <p className="text-xs text-muted truncate">{replyTo.text || (replyTo.fileType ? '📎 Файл' : '')}</p>
+                </div>
+                <button onClick={() => setReplyTo(null)} className="text-muted hover:text-white flex-shrink-0">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <label className="cursor-pointer text-muted hover:text-primary transition flex-shrink-0 pb-2">
+                <input type="file" className="hidden" onChange={(e) => e.target.files && onDrop(Array.from(e.target.files))} />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </label>
+              <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-end gap-2">
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                  placeholder="Сообщение..."
+                  rows={1}
+                  className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
+                />
+              </div>
+              <button onClick={send} disabled={!text.trim() || uploading}
+                className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+              </button>
             </div>
-            <button onClick={() => setReplyTo(null)} className="text-muted hover:text-white flex-shrink-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          </>
         )}
-        <div className="flex items-end gap-2">
-          <label className="cursor-pointer text-muted hover:text-primary transition flex-shrink-0 pb-2">
-            <input type="file" className="hidden" onChange={(e) => e.target.files && onDrop(Array.from(e.target.files))} />
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
-          </label>
-          <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-end gap-2">
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-              placeholder="Сообщение..."
-              rows={1}
-              className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
-            />
-          </div>
-          <button onClick={send} disabled={!text.trim() || uploading}
-            className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
-          </button>
-        </div>
       </div>
     </div>
   )
