@@ -117,7 +117,7 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
   return (
     <div onClick={onClick} onContextMenu={onContextMenu} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-sidebar-hover ${active ? 'bg-sidebar-hover' : ''}`}>
       <div className="relative flex-shrink-0">
-        {chat.avatar ? <img src={chat.avatar} className="w-12 h-12 rounded-full object-cover" alt="" /> : <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">{chat.type === 'channel' ? '#' : chat.name[0]?.toUpperCase()}</div>}
+        {chat.avatar && (chat.avatar.startsWith('data:') || chat.avatar.startsWith('http')) ? <img src={chat.avatar} className="w-12 h-12 rounded-full object-cover" alt="" /> : <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">{chat.type === 'channel' ? '#' : chat.name[0]?.toUpperCase()}</div>}
         {chat.type === 'private' && isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-sidebar" />}
       </div>
       <div className="flex-1 min-w-0">

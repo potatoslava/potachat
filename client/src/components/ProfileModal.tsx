@@ -46,8 +46,8 @@ export default function ProfileModal({ onClose }: Props) {
         {/* Avatar */}
         <div className="flex flex-col items-center mb-5">
           <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
-            {user?.avatar ? (
-              <img src={`${user.avatar}?v=${Date.now()}`} className="w-20 h-20 rounded-full object-cover" alt="" />
+            {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) ? (
+              <img src={user.avatar} className="w-20 h-20 rounded-full object-cover" alt="" />
             ) : (
               <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-white text-2xl font-bold">
                 {user?.displayName?.[0]?.toUpperCase()}
