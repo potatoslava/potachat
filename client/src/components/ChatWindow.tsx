@@ -238,6 +238,7 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
 
         <div
           onClick={() => setShowActions(v => !v)}
+          onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); setShowActions(false) }}
           className={`rounded-2xl px-3 py-2 cursor-pointer select-none ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}
         >
           {!isOwn && showAvatar && <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>}
