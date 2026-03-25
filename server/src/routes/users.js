@@ -44,6 +44,8 @@ router.post('/me/avatar', auth, upload.single('avatar'), async (req, res) => {
     data: { avatar: avatarUrl }
   })
   const { password, ...rest } = user
+  // Рассылаем всем что аватар обновился
+  req.app.get('io').emit('user:avatar', { userId: user.id, avatar: avatarUrl })
   res.json(rest)
 })
 
