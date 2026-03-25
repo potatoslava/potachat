@@ -39,8 +39,11 @@ export default function Sidebar({ onOpenAdmin, showAdmin }: { onOpenAdmin: () =>
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border pt-safe">
         <div className="relative menu-anchor">
           <button onClick={() => setShowMenu(!showMenu)}>
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${isAdmin ? 'bg-yellow-500' : 'bg-primary'}`}>
-              {isAdmin ? '🛡️' : user?.displayName?.[0]?.toUpperCase()}
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden ${isAdmin ? 'bg-yellow-500' : 'bg-primary'}`}>
+              {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http'))
+                ? <img src={user.avatar} className="w-full h-full object-cover" alt="" />
+                : isAdmin ? '🛡️' : user?.displayName?.[0]?.toUpperCase()
+              }
             </div>
           </button>
           {showMenu && (
