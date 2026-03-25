@@ -20,9 +20,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     if (!activeChat) return
-    api.get(`/chats/${activeChat.id}/messages`).then(({ data }) => {
-      setMessages(activeChat.id, data)
-    })
+    api.get(`/chats/${activeChat.id}/messages`).then(({ data }) => setMessages(activeChat.id, data))
     socket.emit('join-chat', activeChat.id)
     return () => { socket.emit('leave-chat', activeChat.id) }
   }, [activeChat?.id])
@@ -34,26 +32,17 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   useEffect(() => {
     const onMessage = (msg: Message) => {
       if (msg.chatId === activeChat?.id) {
-        // Пропускаем если это наше сообщение (уже добавлено через API)
         if (msg.senderId === user?.id) return
         addMessage(msg.chatId, msg)
         updateLastMessage(msg.chatId, msg)
       }
     }
-    const onEdit = (msg: Message) => {
-      if (msg.chatId === activeChat?.id) editMessage(msg.chatId, msg)
-    }
-    const onDelete = ({ id, chatId }: { id: string; chatId: string }) => {
-      if (chatId === activeChat?.id) deleteMessage(chatId, id)
-    }
+    const onEdit = (msg: Message) => { if (msg.chatId === activeChat?.id) editMessage(msg.chatId, msg) }
+    const onDelete = ({ id, chatId }: { id: string; chatId: string }) => { if (chatId === activeChat?.id) deleteMessage(chatId, id) }
     socket.on('message', onMessage)
     socket.on('message:edit', onEdit)
     socket.on('message:delete', onDelete)
-    return () => {
-      socket.off('message', onMessage)
-      socket.off('message:edit', onEdit)
-      socket.off('message:delete', onDelete)
-    }
+    return () => { socket.off('message', onMessage); socket.off('message:edit', onEdit); socket.off('message:delete', onDelete) }
   }, [activeChat?.id])
 
   const send = async () => {
@@ -74,14 +63,10 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       const { data } = await api.post(`/chats/${activeChat.id}/messages/file`, form)
       addMessage(activeChat.id, data)
       updateLastMessage(activeChat.id, data)
-    } finally {
-      setUploading(false)
-    }
+    } finally { setUploading(false) }
   }, [activeChat])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop, noClick: true, noKeyboard: true
-  })
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, noClick: true, noKeyboard: true })
 
   if (!activeChat) {
     return (
@@ -100,14 +85,13 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   return (
     <div {...getRootProps()} className="flex-1 flex flex-col bg-chat relative" style={{ height: '100dvh' }}>
       <input {...getInputProps()} />
-
       {isDragActive && (
         <div className="absolute inset-0 bg-primary/20 border-2 border-primary border-dashed z-50 flex items-center justify-center rounded-lg">
           <p className="text-white text-lg font-medium">Отпустите файл для отправки</p>
         </div>
       )}
 
-      {/* Chat header */}
+      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-header border-b border-border flex-shrink-0 pt-safe">
         {onBack && (
           <button onClick={onBack} className="md:hidden text-muted hover:text-white mr-1 flex-shrink-0">
@@ -136,8 +120,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             isOwn={msg.senderId === user?.id}
             showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
             onReply={() => setReplyTo(msg)}
-            onEdit={async (text) => {
-              const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text })
+            onEdit={async (t) => {
+              const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text: t })
               editMessage(activeChat!.id, data)
             }}
             onDelete={async () => {
@@ -151,7 +135,6 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
       {/* Input */}
       <div className="px-4 py-3 bg-header border-t border-border flex-shrink-0">
-        {/* Reply preview */}
         {replyTo && (
           <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-chat rounded-xl border-l-2 border-primary">
             <div className="flex-1 min-w-0">
@@ -180,14 +163,10 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
               placeholder="Сообщение..."
               rows={1}
               className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
-              style={{ height: 'auto' }}
             />
           </div>
-          <button
-            onClick={send}
-            disabled={!text.trim() || uploading}
-            className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0"
-          >
+          <button onClick={send} disabled={!text.trim() || uploading}
+            className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
             </svg>
@@ -199,17 +178,13 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 }
 
 function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
-  msg: Message
-  isOwn: boolean
-  showAvatar: boolean
-  onReply: () => void
-  onEdit: (text: string) => void
-  onDelete: () => void
+  msg: Message; isOwn: boolean; showAvatar: boolean
+  onReply: () => void; onEdit: (text: string) => void; onDelete: () => void
 }) {
   const isImage = msg.fileType === 'image'
   const isVideo = msg.fileType === 'video'
-  const [showMenu, setShowMenu] = useState(false)
   const [showActions, setShowActions] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.text || '')
 
@@ -225,56 +200,57 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
           {msg.sender?.displayName?.[0]?.toUpperCase()}
         </div>
       )}
-      <div className="relative">
-        {/* Action buttons — видны по клику на сообщение */}
-        <div className={`absolute ${isOwn ? '-left-16' : '-right-16'} bottom-2 flex gap-1 transition-opacity ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <button onClick={(e) => { e.stopPropagation(); onReply(); setShowActions(false) }} className="text-muted hover:text-white p-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-            </svg>
-          </button>
-          {isOwn && (
-            <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); setShowActions(false) }} className="text-muted hover:text-white p-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+      <div className="relative max-w-xs lg:max-w-md xl:max-w-lg">
+
+        {/* Кнопки действий */}
+        {showActions && (
+          <div className={`absolute ${isOwn ? 'right-full mr-1' : 'left-full ml-1'} bottom-0 flex gap-1 z-10`}>
+            <button onClick={(e) => { e.stopPropagation(); onReply(); setShowActions(false) }}
+              className="w-8 h-8 rounded-full bg-sidebar-hover flex items-center justify-center text-muted hover:text-white">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
             </button>
-          )}
-        </div>
-
-        {showMenu && (
-          <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-sidebar-hover rounded-xl shadow-xl z-50 w-36 py-1 border border-border`}>
-            {msg.text && (
-              <button onClick={() => { setEditing(true); setShowMenu(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">
-                ✏️ Изменить
+            {isOwn && (
+              <button onClick={(e) => { e.stopPropagation(); setShowMenu(true); setShowActions(false) }}
+                className="w-8 h-8 rounded-full bg-sidebar-hover flex items-center justify-center text-muted hover:text-white">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                </svg>
               </button>
             )}
-            <button onClick={() => { onDelete(); setShowMenu(false) }}
-              className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">
-              🗑️ Удалить
-            </button>
           </div>
         )}
 
-        <div onClick={() => setShowActions(v => !v)} className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3 py-2 cursor-pointer ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}>
-          {!isOwn && showAvatar && (
-            <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>
-          )}
+        {showMenu && (
+          <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-sidebar-hover rounded-xl shadow-xl z-50 w-36 py-1 border border-border`}>
+            <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+            <div className="relative z-50">
+              {msg.text && (
+                <button onClick={() => { setEditing(true); setShowMenu(false) }}
+                  className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">✏️ Изменить</button>
+              )}
+              <button onClick={() => { onDelete(); setShowMenu(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">🗑️ Удалить</button>
+            </div>
+          </div>
+        )}
 
-          {/* Reply quote */}
+        <div
+          onClick={() => setShowActions(v => !v)}
+          className={`rounded-2xl px-3 py-2 cursor-pointer select-none ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}
+        >
+          {!isOwn && showAvatar && <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>}
+
           {msg.replyTo && (
             <div className="border-l-2 border-primary pl-2 mb-2 opacity-80">
               <p className="text-xs text-primary font-medium">{msg.replyTo.sender?.displayName}</p>
               <p className="text-xs text-muted truncate">{msg.replyTo.text || (msg.replyTo.fileType ? '📎 Файл' : '')}</p>
             </div>
           )}
-          {isImage && (
-            <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1 cursor-pointer" alt={msg.fileName} />
-          )}
-          {isVideo && (
-            <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />
-          )}
+
+          {isImage && <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1" alt={msg.fileName} />}
+          {isVideo && <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />}
           {msg.fileType && !isImage && !isVideo && (
             <a href={`/uploads/${msg.fileUrl}`} download={msg.fileName} className="flex items-center gap-2 text-primary text-sm hover:underline mb-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,21 +259,19 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
               {msg.fileName}
             </a>
           )}
+
           {editing ? (
             <div className="flex gap-1">
-              <input
-                autoFocus
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
+              <input autoFocus value={editText} onChange={(e) => setEditText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') submitEdit(); if (e.key === 'Escape') setEditing(false) }}
-                className="flex-1 bg-transparent text-sm text-white focus:outline-none border-b border-primary"
-              />
+                className="flex-1 bg-transparent text-sm text-white focus:outline-none border-b border-primary" />
               <button onClick={submitEdit} className="text-primary text-xs">✓</button>
               <button onClick={() => setEditing(false)} className="text-muted text-xs">✕</button>
             </div>
           ) : (
             msg.text && <p className="text-sm text-white whitespace-pre-wrap break-words">{msg.text}</p>
           )}
+
           <p className={`text-xs mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-blue-300/60' : 'text-muted'}`}>
             {msg.edited && <span className="italic">изменено</span>}
             {format(new Date(msg.createdAt), 'HH:mm', { locale: ru })}
