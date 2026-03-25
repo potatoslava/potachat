@@ -14,6 +14,7 @@ interface ChatState {
   editMessage: (chatId: string, message: Message) => void
   deleteMessage: (chatId: string, messageId: string) => void
   setUserOnline: (userId: string, online: boolean) => void
+  updateUserAvatar: (userId: string, avatar: string) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -59,5 +60,25 @@ export const useChatStore = create<ChatState>((set) => ({
   setUserOnline: (userId, online) =>
     set((state) => ({
       onlineUsers: { ...state.onlineUsers, [userId]: online },
+    })),
+  updateUserAvatar: (userId, avatar) =>
+    set((state) => ({
+      // обновляем аватар в списке чатов (members)
+      chats: state.chats.map((c) => ({
+        ...c,
+        members: c.members?.map((m) => m.id === userId ? { ...m, avatar } : m),
+        // если это приватный чат с этим юзером — обновляем и avatar чата
+        avatar: c.type === 'private' && c.members?.some(m => m.id === userId) ? avatar : c.avatar,
+      })),
+      // обновляем аватар отправителя в сообщениях
+      messages: Object.fromEntries(
+        Object.entries(state.messages).map(([chatId, msgs]) => [
+          chatId,
+          msgs.map((m) => m.senderId === userId && m.sender
+            ? { ...m, sender: { ...m.sender, avatar } }
+            : m
+          )
+        ])
+      ),
     })),
 }))

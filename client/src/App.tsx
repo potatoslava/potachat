@@ -12,6 +12,7 @@ export default function App() {
   const { user, token } = useAuthStore()
   const { activeChat, setActiveChat } = useChatStore()
   const setUserOnline = useChatStore((s) => s.setUserOnline)
+  const updateUserAvatar = useChatStore((s) => s.updateUserAvatar)
   const [showAdmin, setShowAdmin] = useState(false)
 
   useEffect(() => {
@@ -25,8 +26,12 @@ export default function App() {
       socket.on('user:status', ({ userId, online }: { userId: string; online: boolean }) => {
         setUserOnline(userId, online)
       })
+      socket.on('user:avatar', ({ userId, avatar }: { userId: string; avatar: string }) => {
+        updateUserAvatar(userId, avatar)
+      })
       return () => {
         socket.off('user:status')
+        socket.off('user:avatar')
         socket.disconnect()
       }
     }

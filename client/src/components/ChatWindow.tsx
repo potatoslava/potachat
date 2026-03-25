@@ -216,14 +216,12 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
             </button>
-            {isOwn && (
-              <button onClick={(e) => { e.stopPropagation(); setShowMenu(true); setShowActions(false) }}
-                className="w-8 h-8 rounded-full bg-sidebar-hover flex items-center justify-center text-muted hover:text-white">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                </svg>
-              </button>
-            )}
+            <button onClick={(e) => { e.stopPropagation(); setShowMenu(true); setShowActions(false) }}
+              className="w-8 h-8 rounded-full bg-sidebar-hover flex items-center justify-center text-muted hover:text-white">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
+            </button>
           </div>
         )}
 
@@ -231,12 +229,16 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
           <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-sidebar-hover rounded-xl shadow-xl z-50 w-36 py-1 border border-border`}>
             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
             <div className="relative z-50">
-              {msg.text && (
+              <button onClick={() => { onReply(); setShowMenu(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↩️ Ответить</button>
+              {isOwn && msg.text && (
                 <button onClick={() => { setEditing(true); setShowMenu(false) }}
                   className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">✏️ Изменить</button>
               )}
-              <button onClick={() => { onDelete(); setShowMenu(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">🗑️ Удалить</button>
+              {isOwn && (
+                <button onClick={() => { onDelete(); setShowMenu(false) }}
+                  className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-chat transition">🗑️ Удалить</button>
+              )}
             </div>
           </div>
         )}
