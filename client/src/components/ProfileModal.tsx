@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
+import { useChatStore } from '../store/chatStore'
 import api from '../lib/api'
 
 type Props = { onClose: () => void }
@@ -7,6 +8,7 @@ type Props = { onClose: () => void }
 export default function ProfileModal({ onClose }: Props) {
   const { user, setAuth } = useAuthStore()
   const token = useAuthStore(s => s.token)!
+  const { setChats } = useChatStore()
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [bio, setBio] = useState(user?.bio || '')
   const [saving, setSaving] = useState(false)
@@ -18,6 +20,8 @@ export default function ProfileModal({ onClose }: Props) {
     try {
       const { data } = await api.patch('/users/me', { displayName, bio })
       setAuth(data, token)
+      // перезагружаем чаты чтобы обновить displayName везде
+      api.get('/chats').then(({ data }) => setChats(data))
       setMsg('Сохранено')
     } catch { setMsg('Ошибка') }
     finally { setSaving(false) }
@@ -30,6 +34,8 @@ export default function ProfileModal({ onClose }: Props) {
     form.append('avatar', file)
     const { data } = await api.post('/users/me/avatar', form)
     setAuth(data, token)
+    // перезагружаем чаты чтобы новая ава появилась у собеседников
+    api.get('/chats').then(({ data }) => setChats(data))
   }
 
   return (
@@ -41,7 +47,7 @@ export default function ProfileModal({ onClose }: Props) {
         <div className="flex flex-col items-center mb-5">
           <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
             {user?.avatar ? (
-              <img src={user.avatar} className="w-20 h-20 rounded-full object-cover" alt="" />
+              <img src={`${user.avatar}?v=${Date.now()}`} className="w-20 h-20 rounded-full object-cover" alt="" />
             ) : (
               <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-white text-2xl font-bold">
                 {user?.displayName?.[0]?.toUpperCase()}
