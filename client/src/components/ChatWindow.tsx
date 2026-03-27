@@ -125,8 +125,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           }}>
           {(() => {
             const other = activeChat.members?.find(m => m.id !== user?.id)
-            const avatar = other?.avatar as string | undefined
-            if (activeChat.type === 'private' && avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))) {
+            const avatar = (other?.avatar || activeChat.avatar) as string | undefined
+            if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))) {
               return <img src={avatar} className="w-full h-full object-cover" alt="" />
             }
             return activeChat.type === 'channel' ? '#' : activeChat.name[0]?.toUpperCase()
@@ -247,8 +247,11 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
   return (
     <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
       {!isOwn && (
-        <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
-          {msg.sender?.displayName?.[0]?.toUpperCase()}
+        <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+          {msg.sender?.avatar && (msg.sender.avatar.startsWith('data:') || msg.sender.avatar.startsWith('http'))
+            ? <img src={msg.sender.avatar} className="w-full h-full object-cover" alt="" />
+            : msg.sender?.displayName?.[0]?.toUpperCase()
+          }
         </div>
       )}
       <div className="relative max-w-xs lg:max-w-md xl:max-w-lg">
