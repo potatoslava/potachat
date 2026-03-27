@@ -1,20 +1,10 @@
-const nodemailer = require('nodemailer')
+const { Resend } = require('resend')
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.GMAIL_USER || 'kpthelp1@gmail.com',
-    pass: process.env.GMAIL_PASS
-  },
-  tls: { rejectUnauthorized: false },
-  family: 4
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 async function sendVerificationCode(email, code) {
-  const info = await transporter.sendMail({
-    from: '"CocoDack" <kpthelp1@gmail.com>',
+  const { error } = await resend.emails.send({
+    from: 'CocoDack <onboarding@resend.dev>',
     to: email,
     subject: 'Подтверждение email — CocoDack',
     html: `
@@ -26,7 +16,8 @@ async function sendVerificationCode(email, code) {
       </div>
     `
   })
-  console.log('Email sent:', info.messageId)
+  if (error) throw new Error(error.message)
+  console.log('Email sent to', email)
 }
 
 module.exports = { sendVerificationCode }
