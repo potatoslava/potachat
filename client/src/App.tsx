@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar'
 import ChatWindow from './components/ChatWindow'
 import AdminPage from './pages/AdminPage'
 import SettingsPage from './pages/SettingsPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 
 export default function App() {
   const { user, token } = useAuthStore()
@@ -70,6 +71,9 @@ export default function App() {
   }, [token])
 
   if (!user || !token) return <AuthPage />
+
+  // Показываем экран верификации если email не подтверждён
+  if (!user.emailVerified) return <VerifyEmailPage />
 
   const openAdmin = () => { setShowAdmin(true); setActiveChat(null); setShowSettings(false) }
   const closeAdmin = () => setShowAdmin(false)

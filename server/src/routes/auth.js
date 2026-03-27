@@ -65,6 +65,24 @@ router.post('/resend-code', async (req, res) => {
   res.json({ success: true })
 })
 
+// Привязать email к существующему аккаунту и отправить код
+router.post('/send-verification', async (req, res) => {
+  const auth = req.headers.authorization
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' })
+  const jwt = require('jsonwebtoken')
+  const payload = jwt.verify(auth.slice(7), JWT_SECRET)
+  const { email } = req.body
+  if (!email) return res.status(400).json({ message: 'Укажите email' })
+
+  const emailExists = await prisma.user.findFirst({ where: { email, NOT: { id: payload.userId } } })
+  if (emailExists) return res.status(400).json({ message: 'Email уже используется' })
+
+  const code = generateCode()
+  await prisma.user.update({ where: { id: payload.userId }, data: { email, emailCode: code } })
+  await sendVerificationCode(email, code)
+  res.json({ success: true })
+})
+
 router.post('/login', async (req, res) => {
   const { username, password } = req.body
   const user = await prisma.user.findUnique({ where: { username } })

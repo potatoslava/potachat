@@ -6,6 +6,8 @@ export interface User {
   bio?: string
   online: boolean
   lastSeen?: string
+  email?: string
+  emailVerified?: boolean
 }
 
 export interface Message {

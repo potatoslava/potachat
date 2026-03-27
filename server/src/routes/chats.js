@@ -146,10 +146,6 @@ router.post('/:chatId/messages', auth, async (req, res) => {
   })
   if (!member) return res.status(403).json({ message: 'Нет доступа' })
 
-  // Проверка верификации email
-  const sender = await prisma.user.findUnique({ where: { id: req.userId }, select: { emailVerified: true } })
-  if (sender && !sender.emailVerified) return res.status(403).json({ message: 'Подтвердите email для отправки сообщений' })
-
   // Защита от спама: нельзя отправить то же сообщение в течение 3 секунд
   const recent = await prisma.message.findFirst({
     where: {
