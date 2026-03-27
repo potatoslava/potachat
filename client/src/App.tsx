@@ -14,7 +14,6 @@ export default function App() {
   const { activeChat, setActiveChat } = useChatStore()
   const setUserOnline = useChatStore((s) => s.setUserOnline)
   const updateUserAvatar = useChatStore((s) => s.updateUserAvatar)
-  const incrementUnread = useChatStore((s) => s.incrementUnread)
   const [showAdmin, setShowAdmin] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
@@ -39,20 +38,26 @@ export default function App() {
 
       // Глобальный слушатель новых сообщений для уведомлений
       socket.on('message', (msg: any) => {
-        // Получаем актуальный activeChat из стора
         const state = useChatStore.getState()
         if (msg.senderId === useAuthStore.getState().user?.id) return
-        if (state.activeChat?.id === msg.chatId) return
 
-        // Обновляем счётчик непрочитанных и поднимаем чат вверх
-        incrementUnread(msg.chatId, msg)
+        // Если чат не в списке — перезагружаем все чаты
+        const chatExists = state.chats.find(c => c.id === msg.chatId)
+        if (!chatExists) {
+          api.get('/chats').then(({ data }) => state.setChats(data))
+          return
+        }
 
-        // Браузерное уведомление если вкладка не активна
-        if (document.hidden && Notification.permission === 'granted') {
-          new Notification(msg.sender?.displayName || 'CocoDack', {
-            body: msg.text || '📎 Файл',
-            icon: msg.sender?.avatar || '/favicon.svg',
-          })
+        // Если это не активный чат — обновляем счётчик
+        if (state.activeChat?.id !== msg.chatId) {
+          state.incrementUnread(msg.chatId, msg)
+          // Браузерное уведомление если вкладка не активна
+          if (document.hidden && Notification.permission === 'granted') {
+            new Notification(msg.sender?.displayName || 'CocoDack', {
+              body: msg.text || '📎 Файл',
+              icon: msg.sender?.avatar || '/favicon.svg',
+            })
+          }
         }
       })
       return () => {

@@ -24,6 +24,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     if (!activeChat) return
+    // Всегда загружаем свежие сообщения с сервера
     api.get(`/chats/${activeChat.id}/messages`).then(({ data }) => setMessages(activeChat.id, data))
     socket.emit('join-chat', activeChat.id)
     return () => { socket.emit('leave-chat', activeChat.id) }
