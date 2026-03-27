@@ -13,6 +13,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const { user } = useAuthStore()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [sending, setSending] = useState(false)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -46,12 +47,17 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   }, [activeChat?.id])
 
   const send = async () => {
-    if (!text.trim() || !activeChat) return
-    const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text, replyToId: replyTo?.id })
-    addMessage(activeChat.id, data)
-    updateLastMessage(activeChat.id, data)
-    setText('')
-    setReplyTo(null)
+    if (!text.trim() || !activeChat || sending) return
+    setSending(true)
+    try {
+      const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text, replyToId: replyTo?.id })
+      addMessage(activeChat.id, data)
+      updateLastMessage(activeChat.id, data)
+      setText('')
+      setReplyTo(null)
+    } finally {
+      setSending(false)
+    }
   }
 
   const onDrop = useCallback(async (files: File[]) => {
@@ -177,7 +183,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                   className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
                 />
               </div>
-              <button onClick={send} disabled={!text.trim() || uploading}
+              <button onClick={send} disabled={!text.trim() || uploading || sending}
                 className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
