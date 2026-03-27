@@ -44,7 +44,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden ${isAdmin ? 'bg-yellow-500' : 'bg-primary'}`}>
               {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http'))
                 ? <img src={user.avatar} className="w-full h-full object-cover" alt="" />
-                : isAdmin ? '🛡️' : user?.displayName?.[0]?.toUpperCase()
+                : isAdmin ? 'ЁЯЫбя╕П' : user?.displayName?.[0]?.toUpperCase()
               }
             </div>
           </button>
@@ -56,11 +56,11 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
               </div>
               {isAdmin && (
                 <button onClick={() => { onOpenAdmin(); setShowMenu(false) }} className="w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-chat transition">
-                  🛡️ Панель администратора
+                  ЁЯЫбя╕П ╨Я╨░╨╜╨╡╨╗╤М ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░
                 </button>
               )}
               <button onClick={logout} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-chat transition">
-                Выйти
+                ╨Т╤Л╨╣╤В╨╕
               </button>
             </div>
           )}
@@ -73,7 +73,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
           ) : (
             <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           )}
-          <input value={search} onChange={(e) => setSearch(e.target.value)} onFocus={() => setSearchFocused(true)} placeholder="Поиск" className="bg-transparent text-sm text-white placeholder-muted focus:outline-none flex-1" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onFocus={() => setSearchFocused(true)} placeholder="╨Я╨╛╨╕╤Б╨║" className="bg-transparent text-sm text-white placeholder-muted focus:outline-none flex-1" />
           {search && <button onClick={() => setSearch('')} className="text-muted hover:text-white"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
         </div>
         <button onClick={() => setShowNewChat(true)} className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition">
@@ -83,10 +83,10 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
       {isAdmin && (
         <button onClick={onOpenAdmin} className={`flex items-center gap-3 px-4 py-3 transition hover:bg-sidebar-hover border-b border-border w-full ${showAdmin ? 'bg-sidebar-hover' : ''}`}>
-          <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center text-xl flex-shrink-0">🛡️</div>
+          <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center text-xl flex-shrink-0">ЁЯЫбя╕П</div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="font-medium text-sm text-white">Панель администратора</p>
-            <p className="text-xs text-muted">Управление пользователями</p>
+            <p className="font-medium text-sm text-white">╨Я╨░╨╜╨╡╨╗╤М ╨░╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А╨░</p>
+            <p className="text-xs text-muted">╨г╨┐╤А╨░╨▓╨╗╨╡╨╜╨╕╨╡ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П╨╝╨╕</p>
           </div>
         </button>
       )}
@@ -94,7 +94,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
       {isSearching && <SearchPanel query={search} onClose={() => { setSearch(''); setSearchFocused(false) }} />}
 
       <div className="flex-1 overflow-y-auto">
-        {!isSearching && filtered.length === 0 && <div className="text-center text-muted text-sm mt-10">Нет чатов</div>}
+        {!isSearching && filtered.length === 0 && <div className="text-center text-muted text-sm mt-10">╨Э╨╡╤В ╤З╨░╤В╨╛╨▓</div>}
         {!isSearching && filtered.map((chat) => (
           <ChatItem key={chat.id} chat={chat} active={activeChat?.id === chat.id}
             onClick={() => { setActiveChat(chat); clearUnread(chat.id) }}
@@ -112,13 +112,19 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
   const isBot = chat.name === 'CocoDackBot'
   const { onlineUsers } = useChatStore()
   const { user } = useAuthStore()
-  // для приватного чата берём id собеседника
+  // ╨┤╨╗╤П ╨┐╤А╨╕╨▓╨░╤В╨╜╨╛╨│╨╛ ╤З╨░╤В╨░ ╨▒╨╡╤А╤С╨╝ id ╤Б╨╛╨▒╨╡╤Б╨╡╨┤╨╜╨╕╨║╨░
   const otherId = chat.type === 'private' ? chat.members?.find(m => m.id !== user?.id)?.id : null
   const isOnline = otherId ? !!onlineUsers[otherId] : false
   return (
     <div onClick={onClick} onContextMenu={onContextMenu} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-sidebar-hover ${active ? 'bg-sidebar-hover' : ''}`}>
       <div className="relative flex-shrink-0">
-        {chat.avatar && (chat.avatar.startsWith('data:') || chat.avatar.startsWith('http')) ? <img src={chat.avatar} className="w-12 h-12 rounded-full object-cover" alt="" /> : <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">{chat.type === 'channel' ? '#' : chat.name[0]?.toUpperCase()}</div>}
+        {(() => {
+          const mv = chat.type === 'private' ? chat.members?.find((m: any) => m.id !== user?.id)?.avatar : undefined
+          const av = mv || chat.avatar
+          return av && (av.startsWith('data:') || av.startsWith('http'))
+            ? <img src={av} className="w-12 h-12 rounded-full object-cover" alt="" />
+            : <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">{chat.type === 'channel' ? '#' : chat.name[0]?.toUpperCase()}</div>
+        })()}
         {chat.type === 'private' && isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-sidebar" />}
       </div>
       <div className="flex-1 min-w-0">
@@ -130,7 +136,7 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
           {chat.lastMessage && <span className="text-xs text-muted flex-shrink-0 ml-2">{formatDistanceToNow(new Date(chat.lastMessage.createdAt), { locale: ru, addSuffix: false })}</span>}
         </div>
         <div className="flex justify-between items-center mt-0.5">
-          <p className="text-xs text-muted truncate">{chat.lastMessage?.text || (chat.lastMessage?.fileType ? '📎 Файл' : 'Нет сообщений')}</p>
+          <p className="text-xs text-muted truncate">{chat.lastMessage?.text || (chat.lastMessage?.fileType ? 'ЁЯУО ╨д╨░╨╣╨╗' : '╨Э╨╡╤В ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╣')}</p>
           {chat.unreadCount > 0 && <span className="ml-2 bg-primary text-white text-xs rounded-full px-1.5 py-0.5 flex-shrink-0">{chat.unreadCount}</span>}
         </div>
       </div>
