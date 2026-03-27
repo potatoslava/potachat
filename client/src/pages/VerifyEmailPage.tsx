@@ -95,7 +95,7 @@ export default function VerifyEmailPage() {
           )}
         </div>
       </div>
+      {showSupport && <SupportModal onClose={() => setShowSupport(false)} />}
     </div>
-    {showSupport && <SupportModal onClose={() => setShowSupport(false)} />}
   )
 }
