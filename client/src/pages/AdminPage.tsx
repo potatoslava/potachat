@@ -73,6 +73,11 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
     await api.post(`/admin/users/${id}/unfreeze`)
     setUsers(u => u.map(x => x.id === id ? { ...x, frozen: false } : x))
   }
+  const deleteUser = async (id: string) => {
+    if (!confirm('Удалить аккаунт? Это действие необратимо.')) return
+    await api.delete(`/admin/users/${id}`)
+    setUsers(u => u.filter(x => x.id !== id))
+  }
 
   const createEvent = async () => {
     if (!evTitle.trim()) return
@@ -177,6 +182,10 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                   <button onClick={() => { setBotTarget(u.id); setTab('bot') }}
                     className="px-3 py-1.5 rounded-lg text-xs bg-primary/20 text-primary hover:bg-primary/30 transition">
                     💬 Написать
+                  </button>
+                  <button onClick={() => deleteUser(u.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
+                    🗑️ Удалить
                   </button>
                 </div>
               </div>

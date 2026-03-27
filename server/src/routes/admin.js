@@ -93,7 +93,11 @@ router.delete('/events/:id', auth, adminOnly, async (req, res) => {
   res.json({ success: true })
 })
 
-// Написать от бота конкретному пользователю
+// Удалить пользователя
+router.delete('/users/:id', auth, adminOnly, async (req, res) => {
+  await prisma.user.delete({ where: { id: req.params.id } })
+  res.json({ success: true })
+})
 router.post('/bot-message', auth, adminOnly, async (req, res) => {
   const { userId, text } = req.body
   if (!userId || !text) return res.status(400).json({ message: 'Укажите userId и text' })
