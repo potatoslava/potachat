@@ -35,6 +35,7 @@ router.post('/register', async (req, res) => {
     await sendVerificationCode(email, code)
   } catch (e) {
     console.error('Email send error:', e.message)
+    return res.status(500).json({ message: 'Не удалось отправить письмо: ' + e.message })
   }
 
   const token = jwt.sign({ userId: user.id }, JWT_SECRET)
@@ -79,7 +80,12 @@ router.post('/send-verification', async (req, res) => {
 
   const code = generateCode()
   await prisma.user.update({ where: { id: payload.userId }, data: { email, emailCode: code } })
-  await sendVerificationCode(email, code)
+  try {
+    await sendVerificationCode(email, code)
+  } catch (e) {
+    console.error('Email send error:', e.message)
+    return res.status(500).json({ message: 'Не удалось отправить письмо: ' + e.message })
+  }
   res.json({ success: true })
 })
 
