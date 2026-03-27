@@ -17,8 +17,6 @@ interface ChatState {
   updateUserAvatar: (userId: string, avatar: string) => void
   incrementUnread: (chatId: string, message: Message) => void
   clearUnread: (chatId: string) => void
-  incrementUnread: (chatId: string, message: Message) => void
-  clearUnread: (chatId: string) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({

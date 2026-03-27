@@ -21,6 +21,10 @@ export default function App() {
   useEffect(() => {
     if (token) {
       socket.connect()
+      // Запрашиваем разрешение на уведомления
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
       api.get('/chats/online').then(({ data }) => {
         Object.entries(data).forEach(([userId, online]) => {
           setUserOnline(userId, online as boolean)
@@ -61,11 +65,6 @@ export default function App() {
   }, [token])
 
   if (!user || !token) return <AuthPage />
-
-  // Запрашиваем разрешение на уведомления
-  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-    Notification.requestPermission()
-  }
 
   const openAdmin = () => { setShowAdmin(true); setActiveChat(null); setShowSettings(false) }
   const closeAdmin = () => setShowAdmin(false)
