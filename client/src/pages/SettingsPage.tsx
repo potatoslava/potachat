@@ -2,11 +2,20 @@ import { useState, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useChatStore } from '../store/chatStore'
 import api from '../lib/api'
+import { getLang, setLang, t } from '../lib/i18n'
 
-type Section = 'main' | 'profile' | 'account' | 'privacy'
+type Section = 'main' | 'profile' | 'account' | 'privacy' | 'language'
 
 export default function SettingsPage({ onClose }: { onClose: () => void }) {
   const [section, setSection] = useState<Section>('main')
+
+  const sectionTitle: Record<Section, string> = {
+    main: t('settings'),
+    profile: t('editProfile'),
+    account: t('account'),
+    privacy: t('privacy'),
+    language: t('language'),
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-chat" style={{ height: '100dvh' }}>
@@ -16,9 +25,7 @@ export default function SettingsPage({ onClose }: { onClose: () => void }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <p className="font-semibold text-sm">
-          {section === 'main' ? 'Настройки' : section === 'profile' ? 'Редактировать профиль' : section === 'account' ? 'Аккаунт' : 'Конфиденциальность'}
-        </p>
+        <p className="font-semibold text-sm">{sectionTitle[section]}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -26,6 +33,7 @@ export default function SettingsPage({ onClose }: { onClose: () => void }) {
         {section === 'profile' && <ProfileSection />}
         {section === 'account' && <AccountSection />}
         {section === 'privacy' && <PrivacySection />}
+        {section === 'language' && <LanguageSection />}
       </div>
     </div>
   )
@@ -76,13 +84,14 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
 
       {/* Menu items */}
       <div className="bg-sidebar rounded-2xl overflow-hidden">
-        <MenuItem icon="✏️" label="Редактировать профиль" onClick={() => onNavigate('profile')} />
-        <MenuItem icon="👤" label="Аккаунт" onClick={() => onNavigate('account')} border />
-        <MenuItem icon="🔒" label="Конфиденциальность" onClick={() => onNavigate('privacy')} />
+        <MenuItem icon="✏️" label={t('editProfile')} onClick={() => onNavigate('profile')} />
+        <MenuItem icon="👤" label={t('account')} onClick={() => onNavigate('account')} border />
+        <MenuItem icon="🔒" label={t('privacy')} onClick={() => onNavigate('privacy')} border />
+        <MenuItem icon="🌐" label={t('language')} onClick={() => onNavigate('language')} border />
       </div>
 
       <div className="bg-sidebar rounded-2xl overflow-hidden">
-        <MenuItem icon="🚪" label="Выйти" onClick={logout} danger />
+        <MenuItem icon="🚪" label={t('logout')} onClick={logout} danger />
       </div>
     </div>
   )
@@ -244,6 +253,33 @@ function ToggleItem({ label, value, onChange, border }: { label: string; value: 
         className={`w-11 h-6 rounded-full transition-colors relative ${value ? 'bg-primary' : 'bg-border'}`}>
         <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-0.5'}`} />
       </button>
+    </div>
+  )
+}
+
+function LanguageSection() {
+  const current = getLang()
+  const langs = [
+    { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+  ]
+  return (
+    <div className="p-4">
+      <div className="bg-sidebar rounded-2xl overflow-hidden">
+        {langs.map((l, i) => (
+          <button key={l.code} onClick={() => setLang(l.code as 'ru' | 'en')}
+            className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-sidebar-hover transition ${i > 0 ? 'border-t border-border' : ''}`}>
+            <span className="text-xl">{l.flag}</span>
+            <span className="text-sm text-white flex-1 text-left">{l.label}</span>
+            {current === l.code && (
+              <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+              </svg>
+            )}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted text-center mt-3">При смене языка страница перезагрузится</p>
     </div>
   )
 }
