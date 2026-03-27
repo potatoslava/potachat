@@ -76,6 +76,20 @@ export default function App() {
   const openSettings = () => { setShowSettings(true); setActiveChat(null); setShowAdmin(false) }
   const closeSettings = () => setShowSettings(false)
 
+  // Обработка ссылки /u/username — открыть чат с пользователем
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/u\/(.+)$/)
+    if (match) {
+      const username = match[1]
+      window.history.replaceState({}, '', '/')
+      api.post('/chats/private', { username }).then(({ data }) => {
+        const state = useChatStore.getState()
+        if (!state.chats.find(c => c.id === data.id)) state.setChats([data, ...state.chats])
+        setActiveChat(data)
+      }).catch(() => {})
+    }
+  }, [])
+
   const hasRight = !!activeChat || showAdmin || showSettings
 
   return (

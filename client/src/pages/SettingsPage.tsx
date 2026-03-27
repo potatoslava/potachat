@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import { useChatStore } from '../store/chatStore'
 import api from '../lib/api'
 import { getLang, setLang, t } from '../lib/i18n'
+import QRModal from '../components/QRModal'
 
 type Section = 'main' | 'profile' | 'account' | 'privacy' | 'language'
 
@@ -45,6 +46,7 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
   const { setAuth } = useAuthStore()
   const token = useAuthStore(s => s.token)!
   const { setChats } = useChatStore()
+  const [showQR, setShowQR] = useState(false)
 
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -88,11 +90,14 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
         <MenuItem icon="👤" label={t('account')} onClick={() => onNavigate('account')} border />
         <MenuItem icon="🔒" label={t('privacy')} onClick={() => onNavigate('privacy')} border />
         <MenuItem icon="🌐" label={t('language')} onClick={() => onNavigate('language')} border />
+        <MenuItem icon="📷" label="Мой QR-код" onClick={() => setShowQR(true)} border />
       </div>
 
       <div className="bg-sidebar rounded-2xl overflow-hidden">
         <MenuItem icon="🚪" label={t('logout')} onClick={logout} danger />
       </div>
+
+      {showQR && user && <QRModal username={user.username} onClose={() => setShowQR(false)} />}
     </div>
   )
 }
