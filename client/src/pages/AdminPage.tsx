@@ -128,7 +128,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
   const visibleUsers = users.filter(u => u.username !== 'admin' && u.username !== 'CocoDackBot')
 
   return (
-    <div className="flex-1 flex flex-col bg-chat" style={{ height: '100dvh' }}>
+    <>    <div className="flex-1 flex flex-col bg-chat" style={{ height: '100dvh' }}>
       {/* Header — как в ChatWindow */}
       <div className="flex items-center gap-3 px-4 py-3 bg-header border-b border-border flex-shrink-0 pt-safe">
         <button onClick={onClose} className="md:hidden text-muted hover:text-white mr-1 flex-shrink-0">
@@ -311,5 +311,6 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     )}
+  </>
   )
 }
