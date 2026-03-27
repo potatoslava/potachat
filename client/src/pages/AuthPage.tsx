@@ -20,10 +20,15 @@ export default function AuthPage() {
     }
   }
 
+  // Только латиница, цифры, _ и .
+  const handleUsername = (val: string) => {
+    const clean = val.replace(/[^a-zA-Z0-9_.]/g, '')
+    setForm(f => ({ ...f, username: clean }))
+  }
+
   return (
-    <div className="min-h-screen bg-chat flex items-center justify-center">
+    <div className="min-h-screen bg-chat flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mb-4">
             <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white">
@@ -34,21 +39,12 @@ export default function AuthPage() {
           <p className="text-muted text-sm mt-1">Быстрый и безопасный мессенджер</p>
         </div>
 
-        {/* Form */}
         <div className="bg-sidebar rounded-2xl p-6 shadow-xl">
           <h2 className="text-lg font-semibold mb-5 text-center">
             {isLogin ? 'Войти в аккаунт' : 'Создать аккаунт'}
           </h2>
 
           <form onSubmit={handle} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Имя пользователя"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary transition"
-              required
-            />
             {!isLogin && (
               <input
                 type="text"
@@ -59,6 +55,23 @@ export default function AuthPage() {
                 required
               />
             )}
+
+            {/* Username с @ */}
+            <div className="flex items-center bg-chat border border-border rounded-xl px-4 py-3 gap-1 focus-within:border-primary transition">
+              <span className="text-muted text-sm select-none">@</span>
+              <input
+                type="text"
+                placeholder="username"
+                value={form.username}
+                onChange={(e) => handleUsername(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none"
+                required
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+            </div>
+
             <input
               type="password"
               placeholder="Пароль"
@@ -67,21 +80,19 @@ export default function AuthPage() {
               className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary transition"
               required
             />
+
             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-            <button
-              type="submit"
-              className="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition"
-            >
+
+            <button type="submit"
+              className="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition">
               {isLogin ? 'Войти' : 'Зарегистрироваться'}
             </button>
           </form>
 
           <p className="text-center text-muted text-sm mt-4">
             {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}{' '}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
-            >
+            <button onClick={() => { setIsLogin(!isLogin); setForm({ username: '', displayName: '', password: '' }); setError('') }}
+              className="text-primary hover:underline">
               {isLogin ? 'Создать' : 'Войти'}
             </button>
           </p>
