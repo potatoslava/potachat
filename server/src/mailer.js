@@ -1,15 +1,18 @@
 const nodemailer = require('nodemailer')
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: 'kpthelp1@gmail.com',
     pass: 'bxadhhxhjzhteuyy'
-  }
+  },
+  tls: { rejectUnauthorized: false }
 })
 
 async function sendVerificationCode(email, code) {
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from: '"CocoDack" <kpthelp1@gmail.com>',
     to: email,
     subject: 'Подтверждение email — CocoDack',
@@ -18,10 +21,11 @@ async function sendVerificationCode(email, code) {
         <h2 style="margin:0 0 16px">CocoDack</h2>
         <p style="color:#aaa;margin:0 0 24px">Твой код подтверждения:</p>
         <div style="font-size:36px;font-weight:bold;letter-spacing:8px;text-align:center;padding:16px;background:#232E3C;border-radius:12px">${code}</div>
-        <p style="color:#aaa;margin:24px 0 0;font-size:12px">Код действителен 10 минут. Если ты не регистрировался — проигнорируй это письмо.</p>
+        <p style="color:#aaa;margin:24px 0 0;font-size:12px">Код действителен 10 минут.</p>
       </div>
     `
   })
+  console.log('Email sent:', info.messageId)
 }
 
 module.exports = { sendVerificationCode }
