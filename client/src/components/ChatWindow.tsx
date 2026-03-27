@@ -7,6 +7,7 @@ import type { Message } from '../types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
+import AvatarViewer from './AvatarViewer'
 
 export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers } = useChatStore()
@@ -15,6 +16,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
+  const [showAvatarViewer, setShowAvatarViewer] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -97,6 +99,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const isBot = activeChat.type === 'private' && activeChat.members?.some(m => BOT_NAMES.includes(m.username || ''))
 
   return (
+    <>
     <div {...getRootProps()} className="flex-1 flex flex-col bg-chat relative" style={{ height: '100dvh' }}>
       <input {...getInputProps()} />
       {isDragActive && (
@@ -114,8 +117,19 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             </svg>
           </button>
         )}
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold flex-shrink-0">
-          {activeChat.type === 'channel' ? '#' : activeChat.name[0]?.toUpperCase()}
+        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden cursor-pointer"
+          onClick={() => {
+            const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
+            if (otherId) setShowAvatarViewer(otherId)
+          }}>
+          {(() => {
+            const other = activeChat.members?.find(m => m.id !== user?.id)
+            const avatar = other?.avatar as string | undefined
+            if (activeChat.type === 'private' && avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))) {
+              return <img src={avatar} className="w-full h-full object-cover" alt="" />
+            }
+            return activeChat.type === 'channel' ? '#' : activeChat.name[0]?.toUpperCase()
+          })()}
         </div>
         <div>
           <p className="font-semibold text-sm">{activeChat.name}</p>
@@ -202,6 +216,14 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         )}
       </div>
     </div>
+    {showAvatarViewer && activeChat && (
+      <AvatarViewer
+        userId={showAvatarViewer}
+        name={activeChat.name}
+        onClose={() => setShowAvatarViewer(null)}
+      />
+    )}
+  </>
   )
 }
 

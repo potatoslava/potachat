@@ -60,7 +60,7 @@ router.get('/', auth, async (req, res) => {
       avatar: chat.avatar,
       lastMessage: lastMessage ? formatMessage(lastMessage) : null,
       unreadCount: 0,
-      members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })),
+      members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar })),
       createdAt: chat.createdAt
     }
   })
@@ -92,7 +92,7 @@ router.post('/private', auth, async (req, res) => {
 
   if (existing) {
     const name = existing.members.find(m => m.userId !== req.userId)?.user.displayName || ''
-    return res.json({ id: existing.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: existing.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })), createdAt: existing.createdAt })
+    return res.json({ id: existing.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: existing.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar })), createdAt: existing.createdAt })
   }
 
   const chat = await prisma.chat.create({
@@ -105,7 +105,7 @@ router.post('/private', auth, async (req, res) => {
   })
 
   const name = chat.members.find(m => m.userId !== req.userId)?.user.displayName || ''
-  res.json({ id: chat.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName })), createdAt: chat.createdAt })
+  res.json({ id: chat.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar })), createdAt: chat.createdAt })
 })
 
 // Create group or channel

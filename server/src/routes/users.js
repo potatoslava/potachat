@@ -35,9 +35,20 @@ router.post('/me/avatar', auth, upload.single('avatar'), async (req, res) => {
     where: { id: req.userId },
     data: { avatar: base64 }
   })
+  // Сохраняем в историю аватаров
+  await prisma.avatarHistory.create({ data: { userId: req.userId, avatar: base64 } })
   const { password, ...rest } = user
   req.app.get('io').emit('user:avatar', { userId: user.id, avatar: base64 })
   res.json(rest)
+})
+
+// История аватаров пользователя
+router.get('/:userId/avatars', auth, async (req, res) => {
+  const history = await prisma.avatarHistory.findMany({
+    where: { userId: req.params.userId },
+    orderBy: { createdAt: 'desc' }
+  })
+  res.json(history)
 })
 
 // Block user

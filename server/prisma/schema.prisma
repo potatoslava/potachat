@@ -25,6 +25,7 @@ model User {
   messages    Message[]
   blocking    Block[]      @relation("blocker")
   blockedBy   Block[]      @relation("blocked")
+  avatarHistory AvatarHistory[]
 }
 
 model Chat {
@@ -79,6 +80,15 @@ model Block {
   blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
+}
+
+model AvatarHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  avatar    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Event {
