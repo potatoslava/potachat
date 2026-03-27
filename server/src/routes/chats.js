@@ -132,10 +132,10 @@ router.get('/:chatId/messages', auth, async (req, res) => {
   const messages = await prisma.message.findMany({
     where: { chatId: req.params.chatId },
     include: { sender: true, replyTo: { include: { sender: true } } },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     take: 100
   })
-  res.json(messages.map(formatMessage))
+  res.json(messages.reverse().map(formatMessage))
 })
 
 // Send text message
