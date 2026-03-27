@@ -5,7 +5,7 @@ async function sendVerificationCode(email, code) {
   if (!apiKey) throw new Error('BREVO_API_KEY not set')
 
   const body = JSON.stringify({
-    sender: { name: 'CocoDack', email: 'noreply@cocodack.up.railway.app' },
+    sender: { name: 'CocoDack', email: process.env.BREVO_SENDER || 'kpthelp1@gmail.com' },
     to: [{ email }],
     subject: 'Подтверждение email — CocoDack',
     htmlContent: `
