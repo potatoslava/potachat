@@ -14,6 +14,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -49,12 +50,16 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const send = async () => {
     if (!text.trim() || !activeChat || sending) return
     setSending(true)
+    setSendError('')
     try {
       const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text, replyToId: replyTo?.id })
       addMessage(activeChat.id, data)
       updateLastMessage(activeChat.id, data)
       setText('')
       setReplyTo(null)
+    } catch (e: any) {
+      setSendError(e.response?.data?.message || '')
+      setTimeout(() => setSendError(''), 2000)
     } finally {
       setSending(false)
     }
@@ -153,6 +158,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           <div className="text-center text-muted text-sm py-1">Это бот — ответить нельзя</div>
         ) : (
           <>
+            {sendError && (
+              <p className="text-xs text-red-400 mb-2 text-center">{sendError}</p>
+            )}
             {replyTo && (
               <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-chat rounded-xl border-l-2 border-primary">
                 <div className="flex-1 min-w-0">

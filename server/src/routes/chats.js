@@ -146,6 +146,17 @@ router.post('/:chatId/messages', auth, async (req, res) => {
   })
   if (!member) return res.status(403).json({ message: 'Нет доступа' })
 
+  // Защита от спама: нельзя отправить то же сообщение в течение 3 секунд
+  const recent = await prisma.message.findFirst({
+    where: {
+      chatId: req.params.chatId,
+      senderId: req.userId,
+      text,
+      createdAt: { gte: new Date(Date.now() - 3000) }
+    }
+  })
+  if (recent) return res.status(429).json({ message: 'Подождите перед повторной отправкой' })
+
   const message = await prisma.message.create({
     data: { chatId: req.params.chatId, senderId: req.userId, text, ...(replyToId && { replyToId }) },
     include: { sender: true, replyTo: { include: { sender: true } } }
