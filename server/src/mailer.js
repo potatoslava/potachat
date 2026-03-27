@@ -2,13 +2,14 @@ const nodemailer = require('nodemailer')
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
   auth: {
     user: 'kpthelp1@gmail.com',
     pass: 'bxadhhxhjzhteuyy'
   },
-  tls: { rejectUnauthorized: false }
+  tls: { rejectUnauthorized: false },
+  family: 4  // принудительно IPv4
 })
 
 async function sendVerificationCode(email, code) {
