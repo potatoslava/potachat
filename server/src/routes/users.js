@@ -99,4 +99,16 @@ router.get('/blocked', auth, async (req, res) => {
   res.json(blocks.map(b => b.blocked))
 })
 
+// Отправить тикет в поддержку
+router.post('/support', auth, async (req, res) => {
+  const { message } = req.body
+  if (!message?.trim()) return res.status(400).json({ message: 'Напишите сообщение' })
+  const user = await prisma.user.findUnique({ where: { id: req.userId } })
+  if (!user) return res.status(404).json({ message: 'Не найдено' })
+  const ticket = await prisma.supportTicket.create({
+    data: { userId: req.userId, username: user.username, message }
+  })
+  res.json(ticket)
+})
+
 module.exports = router

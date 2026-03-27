@@ -19,12 +19,22 @@ interface Event {
   createdAt: string
 }
 
-type Tab = 'users' | 'events' | 'bot'
+interface SupportTicket {
+  id: string
+  userId: string
+  username: string
+  message: string
+  status: string
+  createdAt: string
+}
+
+type Tab = 'users' | 'events' | 'bot' | 'support'
 
 export default function AdminPage({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('users')
   const [users, setUsers] = useState<AdminUser[]>([])
   const [events, setEvents] = useState<Event[]>([])
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [loading, setLoading] = useState(false)
 
   const [botTarget, setBotTarget] = useState<string>('all')
@@ -44,6 +54,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (tab === 'events') loadEvents()
+    if (tab === 'support') loadTickets()
   }, [tab])
 
   const loadUsers = async () => {
@@ -55,6 +66,12 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
   const loadEvents = async () => {
     setLoading(true)
     try { const { data } = await api.get('/admin/events'); setEvents(data) }
+    finally { setLoading(false) }
+  }
+
+  const loadTickets = async () => {
+    setLoading(true)
+    try { const { data } = await api.get('/admin/support'); setTickets(data) }
     finally { setLoading(false) }
   }
 
@@ -147,10 +164,10 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
 
       {/* Tabs */}
       <div className="flex gap-1 px-4 py-2 bg-header border-b border-border flex-shrink-0">
-        {(['users', 'events', 'bot'] as Tab[]).map(t => (
+        {(['users', 'events', 'bot', 'support'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab === t ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
-            {t === 'users' ? '👥 Пользователи' : t === 'events' ? '📢 Ивенты' : '🤖 Бот'}
+            {t === 'users' ? '👥 Пользователи' : t === 'events' ? '📢 Ивенты' : t === 'bot' ? '🤖 Бот' : '🎫 Поддержка'}
           </button>
         ))}
       </div>
@@ -279,6 +296,44 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
               {botSending ? 'Отправка...' : '🤖 Отправить'}
             </button>
           </div>
+        )}
+
+        {/* SUPPORT */}
+        {tab === 'support' && (
+          <>
+            {loading && <div className="text-center text-muted py-4">Загрузка...</div>}
+            {!loading && tickets.length === 0 && <div className="text-center text-muted py-8">Нет обращений</div>}
+            {tickets.map(t => (
+              <div key={t.id} className="bg-sidebar rounded-xl p-4 border border-border">
+                <div className="flex justify-between items-start gap-2 mb-2">
+                  <div>
+                    <p className="text-sm font-medium text-white">@{t.username}</p>
+                    <p className="text-xs text-muted">{new Date(t.createdAt).toLocaleString('ru')}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${t.status === 'open' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
+                    {t.status === 'open' ? 'Открыто' : 'Закрыто'}
+                  </span>
+                </div>
+                <p className="text-sm text-white bg-chat rounded-xl px-3 py-2 mb-3">{t.message}</p>
+                <div className="flex gap-2">
+                  {t.status === 'open' && (
+                    <button onClick={async () => { await api.patch(`/admin/support/${t.id}`); setTickets(ts => ts.map(x => x.id === t.id ? { ...x, status: 'closed' } : x)) }}
+                      className="px-3 py-1.5 rounded-lg text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition">
+                      ✅ Закрыть
+                    </button>
+                  )}
+                  <button onClick={async () => { await api.delete(`/admin/support/${t.id}`); setTickets(ts => ts.filter(x => x.id !== t.id)) }}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
+                    🗑️ Удалить
+                  </button>
+                  <button onClick={() => { setBotTarget(t.userId); setTab('bot') }}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-primary/20 text-primary hover:bg-primary/30 transition">
+                    💬 Ответить
+                  </button>
+                </div>
+              </div>
+            ))}
+          </>
         )}
 
       </div>

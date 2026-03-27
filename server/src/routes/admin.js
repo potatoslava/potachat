@@ -160,4 +160,24 @@ function formatMsg(msg) {
   }
 }
 
+// Получить тикеты поддержки
+router.get('/support', auth, adminOnly, async (req, res) => {
+  const tickets = await prisma.supportTicket.findMany({
+    orderBy: { createdAt: 'desc' }
+  })
+  res.json(tickets)
+})
+
+// Закрыть тикет
+router.patch('/support/:id', auth, adminOnly, async (req, res) => {
+  await prisma.supportTicket.update({ where: { id: req.params.id }, data: { status: 'closed' } })
+  res.json({ success: true })
+})
+
+// Удалить тикет
+router.delete('/support/:id', auth, adminOnly, async (req, res) => {
+  await prisma.supportTicket.delete({ where: { id: req.params.id } })
+  res.json({ success: true })
+})
+
 module.exports = router

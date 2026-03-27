@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import SupportModal from '../components/SupportModal'
 
 export default function VerifyEmailPage() {
   const { user, token, setAuth } = useAuthStore()
@@ -10,6 +11,7 @@ export default function VerifyEmailPage() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
   const [resent, setResent] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
 
   const sendCode = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,6 +77,7 @@ export default function VerifyEmailPage() {
                 onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary text-center text-lg tracking-widest"
                 maxLength={6} required />
+              <p className="text-xs text-muted text-center">📁 Код может находиться в папке «Спам»</p>
               {error && <p className="text-red-400 text-xs text-center">{error}</p>}
               <button type="submit"
                 className="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition">
@@ -84,10 +87,15 @@ export default function VerifyEmailPage() {
                 className="w-full text-center text-muted text-sm hover:text-white transition disabled:opacity-50">
                 {resent ? 'Код отправлен повторно' : 'Отправить снова'}
               </button>
+              <button type="button" onClick={() => setShowSupport(true)}
+                className="w-full text-center text-primary text-sm hover:underline transition">
+                Связаться с поддержкой
+              </button>
             </form>
           )}
         </div>
       </div>
     </div>
+    {showSupport && <SupportModal onClose={() => setShowSupport(false)} />}
   )
 }
