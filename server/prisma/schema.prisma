@@ -20,6 +20,7 @@ model User {
   banned      Boolean  @default(false)
   frozen      Boolean  @default(false)
   bannedIp    String?
+  lastIp      String?
 
   memberships ChatMember[]
   messages    Message[]

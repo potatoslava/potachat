@@ -14,7 +14,7 @@ const adminOnly = async (req, res, next) => {
 // Получить всех пользователей
 router.get('/users', auth, adminOnly, async (req, res) => {
   const users = await prisma.user.findMany({
-    select: { id: true, username: true, displayName: true, avatar: true, online: true, banned: true, frozen: true, bannedIp: true, createdAt: true },
+    select: { id: true, username: true, displayName: true, avatar: true, online: true, banned: true, frozen: true, bannedIp: true, lastIp: true, createdAt: true },
     orderBy: { createdAt: 'desc' }
   })
   res.json(users)

@@ -15,16 +15,14 @@ router.post('/register', async (req, res) => {
   const exists = await prisma.user.findUnique({ where: { username } })
   if (exists) return res.status(400).json({ message: 'Пользователь уже существует' })
 
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null
   const hashed = await bcrypt.hash(password, 10)
   const user = await prisma.user.create({
-    data: { username, displayName, password: hashed }
+    data: { username, displayName, password: hashed, lastIp: ip }
   })
 
   const token = jwt.sign({ userId: user.id }, JWT_SECRET)
-
-  // Create welcome chat with CocoDackBot
   createWelcomeChat(user.id).catch(console.error)
-
   res.json({ user: sanitize(user), token })
 })
 
@@ -39,11 +37,11 @@ router.post('/login', async (req, res) => {
   if (user.banned) return res.status(403).json({ message: 'Аккаунт заблокирован администратором' })
   if (user.frozen) return res.status(403).json({ message: 'Аккаунт заморожен. Обратитесь в поддержку' })
 
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null
+  await prisma.user.update({ where: { id: user.id }, data: { lastIp: ip } })
+
   const token = jwt.sign({ userId: user.id }, JWT_SECRET)
-
-  // Create welcome chat if not exists yet
   createWelcomeChat(user.id).catch(console.error)
-
   res.json({ user: sanitize(user), token })
 })
 

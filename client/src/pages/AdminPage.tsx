@@ -9,6 +9,7 @@ interface AdminUser {
   banned: boolean
   frozen: boolean
   bannedIp?: string
+  lastIp?: string
 }
 
 interface Event {
@@ -160,7 +161,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                       {u.banned && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">забанен</span>}
                       {u.frozen && <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">заморожен</span>}
                     </p>
-                    <p className="text-xs text-muted">@{u.username} · {u.online ? '🟢 онлайн' : '⚫ офлайн'}</p>
+                    <p className="text-xs text-muted">@{u.username} · {u.online ? '🟢 онлайн' : '⚫ офлайн'}{u.lastIp ? ` · IP: ${u.lastIp}` : ''}</p>
                     {u.bannedIp && <p className="text-xs text-red-400 mt-0.5">IP: {u.bannedIp}</p>}
                   </div>
                 </div>
