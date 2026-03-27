@@ -53,7 +53,7 @@ export default function VerifyEmailPage() {
           <p className="text-muted text-sm mt-2 text-center">
             {step === 'email'
               ? 'Введи свой Gmail для подтверждения аккаунта'
-              : `Код отправлен на ${email}`
+              : `Код отправлен на ${email || user?.email || 'твой email'}`
             }
           </p>
         </div>
