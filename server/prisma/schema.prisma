@@ -21,6 +21,9 @@ model User {
   frozen      Boolean  @default(false)
   bannedIp    String?
   lastIp      String?
+  email       String?  @unique
+  emailVerified Boolean @default(false)
+  emailCode   String?
 
   memberships ChatMember[]
   messages    Message[]
