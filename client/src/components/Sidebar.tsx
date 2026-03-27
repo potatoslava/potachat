@@ -7,17 +7,19 @@ import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import NewChatModal from './NewChatModal'
 import SearchPanel from './SearchPanel'
-import ProfileModal from './ProfileModal'
 import ChatContextMenu from './ChatContextMenu'
 
-export default function Sidebar({ onOpenAdmin, showAdmin }: { onOpenAdmin: () => void; showAdmin: boolean }) {
+export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSettings }: {
+  onOpenAdmin: () => void; showAdmin: boolean
+  onOpenSettings: () => void; showSettings: boolean
+}) {
   const { chats, setChats, setActiveChat, activeChat } = useChatStore()
+  const clearUnread = useChatStore((s) => s.clearUnread)
   const { user, logout } = useAuthStore()
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
   const isAdmin = user?.username === 'admin'
 
@@ -38,7 +40,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin }: { onOpenAdmin: () =>
     <div className="w-full md:w-80 flex-shrink-0 bg-sidebar flex flex-col border-r border-border relative" style={{ height: '100dvh' }}>
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border pt-safe">
         <div className="relative menu-anchor">
-          <button onClick={() => setShowMenu(!showMenu)}>
+          <button onClick={onOpenSettings}>
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden ${isAdmin ? 'bg-yellow-500' : 'bg-primary'}`}>
               {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http'))
                 ? <img src={user.avatar} className="w-full h-full object-cover" alt="" />
@@ -57,9 +59,6 @@ export default function Sidebar({ onOpenAdmin, showAdmin }: { onOpenAdmin: () =>
                   🛡️ Панель администратора
                 </button>
               )}
-              <button onClick={() => { setShowProfile(true); setShowMenu(false) }} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-chat transition">
-                Редактировать профиль
-              </button>
               <button onClick={logout} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-chat transition">
                 Выйти
               </button>
@@ -98,13 +97,12 @@ export default function Sidebar({ onOpenAdmin, showAdmin }: { onOpenAdmin: () =>
         {!isSearching && filtered.length === 0 && <div className="text-center text-muted text-sm mt-10">Нет чатов</div>}
         {!isSearching && filtered.map((chat) => (
           <ChatItem key={chat.id} chat={chat} active={activeChat?.id === chat.id}
-            onClick={() => setActiveChat(chat)}
+            onClick={() => { setActiveChat(chat); clearUnread(chat.id) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ chat, x: e.clientX, y: e.clientY }) }} />
         ))}
       </div>
 
       {showNewChat && <NewChatModal onClose={() => setShowNewChat(false)} />}
-      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
       {contextMenu && <ChatContextMenu chat={contextMenu.chat} position={{ x: contextMenu.x, y: contextMenu.y }} onClose={() => setContextMenu(null)} />}
     </div>
   )

@@ -15,6 +15,10 @@ interface ChatState {
   deleteMessage: (chatId: string, messageId: string) => void
   setUserOnline: (userId: string, online: boolean) => void
   updateUserAvatar: (userId: string, avatar: string) => void
+  incrementUnread: (chatId: string, message: Message) => void
+  clearUnread: (chatId: string) => void
+  incrementUnread: (chatId: string, message: Message) => void
+  clearUnread: (chatId: string) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -80,5 +84,15 @@ export const useChatStore = create<ChatState>((set) => ({
           )
         ])
       ),
+    })),
+  incrementUnread: (chatId, message) =>
+    set((state) => ({
+      chats: state.chats
+        .map((c) => c.id === chatId ? { ...c, unreadCount: (c.unreadCount || 0) + 1, lastMessage: message } : c)
+        .sort((a, b) => new Date(b.lastMessage?.createdAt || b.createdAt).getTime() - new Date(a.lastMessage?.createdAt || a.createdAt).getTime())
+    })),
+  clearUnread: (chatId) =>
+    set((state) => ({
+      chats: state.chats.map((c) => c.id === chatId ? { ...c, unreadCount: 0 } : c)
     })),
 }))

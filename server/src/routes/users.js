@@ -18,13 +18,34 @@ router.get('/me', auth, async (req, res) => {
 
 // Update profile
 router.patch('/me', auth, async (req, res) => {
-  const { displayName, bio } = req.body
+  const { displayName, bio, username } = req.body
+  if (username) {
+    const exists = await prisma.user.findUnique({ where: { username } })
+    if (exists && exists.id !== req.userId) return res.status(400).json({ message: 'Имя пользователя занято' })
+  }
   const user = await prisma.user.update({
     where: { id: req.userId },
-    data: { ...(displayName && { displayName }), ...(bio !== undefined && { bio }) }
+    data: {
+      ...(displayName && { displayName }),
+      ...(bio !== undefined && { bio }),
+      ...(username && { username })
+    }
   })
   const { password, ...rest } = user
   res.json(rest)
+})
+
+// Change password
+router.patch('/me/password', auth, async (req, res) => {
+  const { oldPassword, newPassword } = req.body
+  const user = await prisma.user.findUnique({ where: { id: req.userId } })
+  if (!user) return res.status(404).json({ message: 'Не найдено' })
+  const bcrypt = require('bcryptjs')
+  const ok = await bcrypt.compare(oldPassword, user.password)
+  if (!ok) return res.status(400).json({ message: 'Неверный текущий пароль' })
+  const hashed = await bcrypt.hash(newPassword, 10)
+  await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } })
+  res.json({ success: true })
 })
 
 // Upload avatar — сохраняем как base64 data URL прямо в БД
