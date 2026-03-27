@@ -74,6 +74,19 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
     await api.post(`/admin/users/${id}/unfreeze`)
     setUsers(u => u.map(x => x.id === id ? { ...x, frozen: false } : x))
   }
+  const [resetModal, setResetModal] = useState<{ id: string; name: string } | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetMsg, setResetMsg] = useState('')
+
+  const resetPassword = async () => {
+    if (!newPassword.trim() || !resetModal) return
+    try {
+      await api.post(`/admin/users/${resetModal.id}/reset-password`, { newPassword })
+      setResetMsg('Пароль изменён')
+      setTimeout(() => { setResetModal(null); setResetMsg(''); setNewPassword('') }, 1500)
+    } catch (e: any) { setResetMsg(e.response?.data?.message || 'Ошибка') }
+  }
+
   const deleteUser = async (id: string) => {
     if (!confirm('Удалить аккаунт? Это действие необратимо.')) return
     await api.delete(`/admin/users/${id}`)
@@ -184,6 +197,10 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                     className="px-3 py-1.5 rounded-lg text-xs bg-primary/20 text-primary hover:bg-primary/30 transition">
                     💬 Написать
                   </button>
+                  <button onClick={() => { setResetModal({ id: u.id, name: u.displayName }); setNewPassword(''); setResetMsg('') }}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition">
+                    🔑 Сбросить пароль
+                  </button>
                   <button onClick={() => deleteUser(u.id)}
                     className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
                     🗑️ Удалить
@@ -266,5 +283,33 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
 
       </div>
     </div>
+
+    {/* Модалка сброса пароля */}
+    {resetModal && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setResetModal(null)}>
+        <div className="bg-sidebar rounded-2xl p-6 w-80 shadow-2xl border border-border" onClick={e => e.stopPropagation()}>
+          <p className="font-semibold mb-1">Сбросить пароль</p>
+          <p className="text-xs text-muted mb-4">{resetModal.name}</p>
+          <input
+            type="text"
+            placeholder="Новый пароль"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary mb-3"
+          />
+          {resetMsg && <p className="text-xs text-primary mb-2 text-center">{resetMsg}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => setResetModal(null)}
+              className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
+              Отмена
+            </button>
+            <button onClick={resetPassword} disabled={!newPassword.trim()}
+              className="flex-1 py-2 rounded-xl bg-yellow-500 text-white text-sm font-medium hover:bg-yellow-600 transition disabled:opacity-50">
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   )
 }

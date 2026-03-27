@@ -93,6 +93,16 @@ router.delete('/events/:id', auth, adminOnly, async (req, res) => {
   res.json({ success: true })
 })
 
+// Сбросить пароль пользователя
+router.post('/users/:id/reset-password', auth, adminOnly, async (req, res) => {
+  const { newPassword } = req.body
+  if (!newPassword) return res.status(400).json({ message: 'Укажите новый пароль' })
+  const bcrypt = require('bcryptjs')
+  const hashed = await bcrypt.hash(newPassword, 10)
+  await prisma.user.update({ where: { id: req.params.id }, data: { password: hashed } })
+  res.json({ success: true })
+})
+
 // Удалить пользователя
 router.delete('/users/:id', auth, adminOnly, async (req, res) => {
   await prisma.user.delete({ where: { id: req.params.id } })
