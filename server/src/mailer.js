@@ -5,11 +5,11 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: 'kpthelp1@gmail.com',
-    pass: 'bxadhhxhjzhteuyy'
+    user: process.env.GMAIL_USER || 'kpthelp1@gmail.com',
+    pass: process.env.GMAIL_PASS
   },
   tls: { rejectUnauthorized: false },
-  family: 4  // принудительно IPv4
+  family: 4
 })
 
 async function sendVerificationCode(email, code) {
