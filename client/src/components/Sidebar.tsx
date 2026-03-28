@@ -21,11 +21,8 @@ import ChatContextMenu from './ChatContextMenu'
 
 
 export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSettings }: {
-  const isAdmin = user?.username === 'cocoduckadm'
   onOpenAdmin: () => void; showAdmin: boolean
-
   onOpenSettings: () => void; showSettings: boolean
-
 }) {
 
   const { chats, setChats, setActiveChat, activeChat } = useChatStore()
@@ -43,8 +40,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
   const [showMenu, setShowMenu] = useState(false)
 
   const [contextMenu, setContextMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
-
-  const isAdmin = user?.username === 'admin'
+  const isAdmin = user?.username === 'cocoduckadm'
 
 
 
