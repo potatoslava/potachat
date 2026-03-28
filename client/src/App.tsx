@@ -72,8 +72,8 @@ export default function App() {
 
   if (!user || !token) return <AuthPage />
 
-  // Показываем экран верификации если email не подтверждён
-  if (!user.emailVerified) return <VerifyEmailPage />
+  // Email verification temporarily disabled
+  // if (!user.emailVerified) return <VerifyEmailPage />
 
   const openAdmin = () => { setShowAdmin(true); setActiveChat(null); setShowSettings(false) }
   const closeAdmin = () => setShowAdmin(false)
