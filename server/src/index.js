@@ -6,7 +6,7 @@ const path = require('path')
 const jwt = require('jsonwebtoken')
 const { PrismaClient } = require('@prisma/client')
 
-const authRoutes = require('./routes/auth')
+const authRoutes = require('./routes/authRoutes')
 const chatRoutes = require('./routes/chats')
 const searchRoutes = require('./routes/search')
 const userRoutes = require('./routes/users')
