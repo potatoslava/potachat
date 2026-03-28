@@ -8,7 +8,7 @@ import Sidebar from './components/Sidebar'
 import ChatWindow from './components/ChatWindow'
 import AdminPage from './pages/AdminPage'
 import SettingsPage from './pages/SettingsPage'
-import VerifyEmailPage from './pages/VerifyEmailPage'
+import VerifyEmailPage from './pages/EmailVerifyPage'
 
 export default function App() {
   const { user, token } = useAuthStore()
