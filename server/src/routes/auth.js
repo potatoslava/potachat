@@ -7,6 +7,7 @@ const { sendVerificationCode } = require('../mailer')
 
 const prisma = new PrismaClient()
 const JWT_SECRET = process.env.JWT_SECRET || 'CocoDack_secret_key'
+// v2
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
