@@ -1,6 +1,6 @@
 {
   "name": "CocoDack",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "build": "cd client && npm install && npm run build && cd ../server && npm install && npx prisma generate",
     "start": "cd server && npx prisma migrate deploy && node src/index.js"
