@@ -7,7 +7,7 @@ const prisma = new PrismaClient()
 // Middleware: только @admin
 const adminOnly = async (req, res, next) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } })
-  if (!user || user.username !== 'admin') return res.status(403).json({ message: 'Нет доступа' })
+  if (!user || user.username !== 'cocoduckadm') return res.status(403).json({ message: 'Нет доступа' })
   next()
 }
 
