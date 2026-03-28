@@ -52,9 +52,14 @@ export default function VerifyEmailPage() {
           <p className="text-muted text-sm mt-2 text-center">
             {step === 'email'
               ? 'Введи свой Gmail для подтверждения аккаунта'
-              : `Код отправлен на ${email || user?.email || 'твой email'}`
+              : <span>Код отправлен на <b className="text-white">{email || user?.email || 'твой email'}</b></span>
             }
           </p>
+          {step === 'code' && (
+            <button onClick={() => setStep('email')} className="text-primary text-xs mt-1 hover:underline">
+              Изменить email
+            </button>
+          )}
         </div>
         <div className="bg-sidebar rounded-2xl p-6 shadow-xl">
           {step === 'email' ? (
