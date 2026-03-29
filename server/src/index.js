@@ -51,14 +51,14 @@ io.use((socket, next) => {
 
 io.on('connection', async (socket) => {
   socket.join(`user:${socket.userId}`)
-  await prisma.user.update({ where: { id: socket.userId }, data: { online: true } })
+  await prisma.user.update({ where: { id: socket.userId }, data: { online: true } }).catch(() => {})
   io.emit('user:status', { userId: socket.userId, online: true })
 
   socket.on('join-chat', (chatId) => socket.join(`chat:${chatId}`))
   socket.on('leave-chat', (chatId) => socket.leave(`chat:${chatId}`))
 
   socket.on('disconnect', async () => {
-    await prisma.user.update({ where: { id: socket.userId }, data: { online: false, lastSeen: new Date() } })
+    await prisma.user.update({ where: { id: socket.userId }, data: { online: false, lastSeen: new Date() } }).catch(() => {})
     io.emit('user:status', { userId: socket.userId, online: false })
   })
 })
