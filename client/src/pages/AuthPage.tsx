@@ -32,6 +32,7 @@ export default function AuthPage() {
         setScreen('verify')
       } else {
         setAuth(data.user, data.token)
+        window.location.reload()
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка')
