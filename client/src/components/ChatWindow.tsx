@@ -58,7 +58,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       if (data.id === activeChat?.id) {
         const s = useChatStore.getState()
         s.setChats(s.chats.map(c => c.id === data.id ? { ...c, name: data.name, avatar: data.avatar, description: data.description } : c))
-        if (s.activeChat?.id === data.id) s.setActiveChat({ ...s.activeChat, name: data.name, avatar: data.avatar, description: data.description })
+        if (s.activeChat?.id === data.id) s.setActiveChat({ ...s.activeChat!, name: data.name, avatar: data.avatar, description: data.description })
       }
     }
 
@@ -66,7 +66,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       if (data.chatId === activeChat?.id) {
         const s = useChatStore.getState()
         s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: [...(c.members || []), data.member] } : c))
-        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat, members: [...(s.activeChat.members || []), data.member] })
+        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat!, members: [...(s.activeChat!.members || []), data.member] })
       }
     }
 
@@ -74,7 +74,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       if (data.chatId === activeChat?.id) {
         const s = useChatStore.getState()
         s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: (c.members || []).filter(m => m.id !== data.userId) } : c))
-        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat, members: (s.activeChat.members || []).filter(m => m.id !== data.userId) })
+        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat!, members: (s.activeChat!.members || []).filter(m => m.id !== data.userId) })
       }
     }
 
