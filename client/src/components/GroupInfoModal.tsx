@@ -185,10 +185,8 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
               </button>
               <button onClick={() => {
                 setTab('media')
-                if (media.length === 0 && !mediaLoading) {
-                  setMediaLoading(true)
-                  api.get(`/chats/${chat.id}/media`).then(({ data }) => setMedia(data)).catch(() => {}).finally(() => setMediaLoading(false))
-                }
+                setMediaLoading(true)
+                api.get(`/chats/${chat.id}/media`).then(({ data }) => setMedia(data)).catch(() => {}).finally(() => setMediaLoading(false))
               }}
                 className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${tab === 'media' ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
                 Медиа

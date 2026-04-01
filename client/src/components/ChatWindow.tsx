@@ -61,6 +61,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     return () => {
       socket.emit('leave-chat', activeChat.id)
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
       socket.emit('typing:stop', { chatId: activeChat.id })
     }
   }, [activeChat?.id])
@@ -134,13 +135,16 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val)
-    if (!activeChat) return
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     if (!val.trim()) { setSearchResults([]); return }
+    const chatId = activeChat?.id
+    if (!chatId) return
     searchTimerRef.current = setTimeout(async () => {
+      // Проверяем что чат не сменился пока ждали
+      if (useChatStore.getState().activeChat?.id !== chatId) return
       setSearchLoading(true)
       try {
-        const { data } = await api.get(`/chats/${activeChat.id}/search?q=${encodeURIComponent(val)}`)
+        const { data } = await api.get(`/chats/${chatId}/search?q=${encodeURIComponent(val)}`)
         setSearchResults(data)
       } finally { setSearchLoading(false) }
     }, 300)
@@ -606,6 +610,7 @@ function ForwardModal({ msg, onClose, onForward }: {
               onClick={async () => {
                 setForwarding(chat.id)
                 await onForward(chat.id)
+                setForwarding(null)
               }}
               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-sidebar-hover transition disabled:opacity-50">
               <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
