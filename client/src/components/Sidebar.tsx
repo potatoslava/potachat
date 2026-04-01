@@ -40,6 +40,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
   const [showMenu, setShowMenu] = useState(false)
 
   const [contextMenu, setContextMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
+  const [pinVersion, setPinVersion] = useState(0)
   const isAdmin = user?.username === 'cocoduckadm'
 
 
@@ -70,8 +71,10 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
   const isSearching = searchFocused && search.trim().length > 0
 
-  // Закреплённые чаты наверху
+  // Закреплённые чаты наверху — pinVersion форсирует перерендер после изменения
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const pinnedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] } })()
+  void pinVersion // используем для зависимости
   const filtered = chats
     .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
@@ -216,7 +219,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
       {showNewChat && <NewChatModal onClose={() => setShowNewChat(false)} />}
 
-      {contextMenu && <ChatContextMenu chat={contextMenu.chat} position={{ x: contextMenu.x, y: contextMenu.y }} onClose={() => setContextMenu(null)} />}
+      {contextMenu && <ChatContextMenu chat={contextMenu.chat} position={{ x: contextMenu.x, y: contextMenu.y }} onClose={() => { setContextMenu(null); setPinVersion(v => v + 1) }} />}
 
     </div>
 
@@ -273,7 +276,7 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
           </span>
 
           {chat.lastMessage && <span className="text-xs text-muted flex-shrink-0 ml-2">{formatDistanceToNow(new Date(chat.lastMessage.createdAt), { locale: ru, addSuffix: false })}</span>}
-            {isPinned && <svg className="w-3 h-3 text-muted flex-shrink-0 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>}
+          {isPinned && <svg className="w-3 h-3 text-muted flex-shrink-0 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>}
 
         </div>
 

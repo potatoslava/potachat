@@ -49,7 +49,11 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       .then(({ data }) => setMessages(activeChat.id, data))
       .catch(() => {})
     socket.emit('join-chat', activeChat.id)
-    return () => { socket.emit('leave-chat', activeChat.id) }
+    return () => {
+      socket.emit('leave-chat', activeChat.id)
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+      socket.emit('typing:stop', { chatId: activeChat.id })
+    }
   }, [activeChat?.id])
 
   useEffect(() => {
@@ -260,6 +264,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             )
           })()}
         </div>
+      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
