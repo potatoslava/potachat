@@ -36,6 +36,8 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
   const [events, setEvents] = useState<Event[]>([])
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [loading, setLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const [botTarget, setBotTarget] = useState<string>('all')
   const [botText, setBotText] = useState('')
@@ -48,52 +50,82 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
 
   const [banIpMap, setBanIpMap] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    loadUsers()
-  }, [])
+  const [resetModal, setResetModal] = useState<{ id: string; name: string } | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetMsg, setResetMsg] = useState('')
+
+  useEffect(() => { loadUsers() }, [])
 
   useEffect(() => {
     if (tab === 'events') loadEvents()
     if (tab === 'support') loadTickets()
   }, [tab])
 
+  const showError = (msg: string) => {
+    setActionError(msg)
+    setTimeout(() => setActionError(''), 3000)
+  }
+
   const loadUsers = async () => {
     setLoading(true)
     try { const { data } = await api.get('/admin/users'); setUsers(data) }
+    catch (e: any) { showError(e.response?.data?.message || 'Ошибка загрузки') }
     finally { setLoading(false) }
   }
 
   const loadEvents = async () => {
     setLoading(true)
     try { const { data } = await api.get('/admin/events'); setEvents(data) }
+    catch (e: any) { showError(e.response?.data?.message || 'Ошибка загрузки') }
     finally { setLoading(false) }
   }
 
   const loadTickets = async () => {
     setLoading(true)
     try { const { data } = await api.get('/admin/support'); setTickets(data) }
+    catch (e: any) { showError(e.response?.data?.message || 'Ошибка загрузки') }
     finally { setLoading(false) }
   }
 
   const ban = async (id: string) => {
-    await api.post(`/admin/users/${id}/ban`, { ip: banIpMap[id] || undefined })
-    setUsers(u => u.map(x => x.id === id ? { ...x, banned: true } : x))
+    if (actionLoading) return
+    setActionLoading(`ban-${id}`)
+    try {
+      await api.post(`/admin/users/${id}/ban`, { ip: banIpMap[id] || undefined })
+      setUsers(u => u.map(x => x.id === id ? { ...x, banned: true, online: false } : x))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
+    finally { setActionLoading(null) }
   }
+
   const unban = async (id: string) => {
-    await api.post(`/admin/users/${id}/unban`)
-    setUsers(u => u.map(x => x.id === id ? { ...x, banned: false, bannedIp: undefined } : x))
+    if (actionLoading) return
+    setActionLoading(`unban-${id}`)
+    try {
+      await api.post(`/admin/users/${id}/unban`)
+      setUsers(u => u.map(x => x.id === id ? { ...x, banned: false, bannedIp: undefined } : x))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
+    finally { setActionLoading(null) }
   }
+
   const freeze = async (id: string) => {
-    await api.post(`/admin/users/${id}/freeze`)
-    setUsers(u => u.map(x => x.id === id ? { ...x, frozen: true } : x))
+    if (actionLoading) return
+    setActionLoading(`freeze-${id}`)
+    try {
+      await api.post(`/admin/users/${id}/freeze`)
+      setUsers(u => u.map(x => x.id === id ? { ...x, frozen: true, online: false } : x))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
+    finally { setActionLoading(null) }
   }
+
   const unfreeze = async (id: string) => {
-    await api.post(`/admin/users/${id}/unfreeze`)
-    setUsers(u => u.map(x => x.id === id ? { ...x, frozen: false } : x))
+    if (actionLoading) return
+    setActionLoading(`unfreeze-${id}`)
+    try {
+      await api.post(`/admin/users/${id}/unfreeze`)
+      setUsers(u => u.map(x => x.id === id ? { ...x, frozen: false } : x))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
+    finally { setActionLoading(null) }
   }
-  const [resetModal, setResetModal] = useState<{ id: string; name: string } | null>(null)
-  const [newPassword, setNewPassword] = useState('')
-  const [resetMsg, setResetMsg] = useState('')
 
   const resetPassword = async () => {
     if (!newPassword.trim() || !resetModal) return
@@ -104,10 +136,15 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
     } catch (e: any) { setResetMsg(e.response?.data?.message || 'Ошибка') }
   }
 
-  const deleteUser = async (id: string) => {
-    if (!confirm('Удалить аккаунт? Это действие необратимо.')) return
-    await api.delete(`/admin/users/${id}`)
-    setUsers(u => u.filter(x => x.id !== id))
+  const deleteUser = async (id: string, name: string) => {
+    if (!confirm(`Удалить аккаунт "${name}"? Это действие необратимо.`)) return
+    if (actionLoading) return
+    setActionLoading(`delete-${id}`)
+    try {
+      await api.delete(`/admin/users/${id}`)
+      setUsers(u => u.filter(x => x.id !== id))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка удаления') }
+    finally { setActionLoading(null) }
   }
 
   const createEvent = async () => {
@@ -117,12 +154,15 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
       const { data } = await api.post('/admin/events', { title: evTitle, description: evDesc })
       setEvents(e => [data, ...e])
       setEvTitle(''); setEvDesc('')
-    } finally { setEvCreating(false) }
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка создания') }
+    finally { setEvCreating(false) }
   }
 
   const deleteEvent = async (id: string) => {
-    await api.delete(`/admin/events/${id}`)
-    setEvents(e => e.filter(x => x.id !== id))
+    try {
+      await api.delete(`/admin/events/${id}`)
+      setEvents(e => e.filter(x => x.id !== id))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
   }
 
   const sendBotMessage = async () => {
@@ -142,27 +182,45 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
     } finally { setBotSending(false) }
   }
 
-  const visibleUsers = users.filter(u => u.username !== 'admin' && u.username !== 'CocoDackBot')
+  const closeTicket = async (id: string) => {
+    try {
+      await api.patch(`/admin/support/${id}`)
+      setTickets(ts => ts.map(x => x.id === id ? { ...x, status: 'closed' } : x))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
+  }
+
+  const deleteTicket = async (id: string) => {
+    try {
+      await api.delete(`/admin/support/${id}`)
+      setTickets(ts => ts.filter(x => x.id !== id))
+    } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
+  }
+
+  const visibleUsers = users.filter(u => u.username !== 'CocoDackBot')
 
   return (
-    <>    <div className="flex-1 flex flex-col bg-chat" style={{ height: '100dvh' }}>
-      {/* Header — как в ChatWindow */}
+    <>
+    <div className="flex-1 flex flex-col bg-chat" style={{ height: '100dvh' }}>
       <div className="flex items-center gap-3 px-4 py-3 bg-header border-b border-border flex-shrink-0 pt-safe">
         <button onClick={onClose} className="md:hidden text-muted hover:text-white mr-1 flex-shrink-0">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold flex-shrink-0 text-lg">
-          🛡️
-        </div>
+        <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold flex-shrink-0 text-lg">🛡️</div>
         <div>
           <p className="font-semibold text-sm">Панель администратора</p>
           <p className="text-xs text-muted">управление пользователями и контентом</p>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Глобальная ошибка */}
+      {actionError && (
+        <div className="mx-4 mt-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-xs text-center">
+          {actionError}
+        </div>
+      )}
+
       <div className="flex gap-1 px-4 py-2 bg-header border-b border-border flex-shrink-0">
         {(['users', 'events', 'bot', 'support'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -172,17 +230,17 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
         ))}
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
 
         {/* USERS */}
         {tab === 'users' && (
           <>
             {loading && <div className="text-center text-muted py-8">Загрузка...</div>}
+            {!loading && visibleUsers.length === 0 && <div className="text-center text-muted py-8">Нет пользователей</div>}
             {!loading && visibleUsers.map(u => (
               <div key={u.id} className="bg-sidebar rounded-xl p-4 border border-border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden">
                     {u.displayName[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -192,7 +250,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                       {u.frozen && <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">заморожен</span>}
                     </p>
                     <p className="text-xs text-muted">@{u.username} · {u.online ? '🟢 онлайн' : '⚫ офлайн'}{u.lastIp ? ` · IP: ${u.lastIp}` : ''}</p>
-                    {u.bannedIp && <p className="text-xs text-red-400 mt-0.5">IP: {u.bannedIp}</p>}
+                    {u.bannedIp && <p className="text-xs text-red-400 mt-0.5">Забанен с IP: {u.bannedIp}</p>}
                   </div>
                 </div>
                 <input
@@ -203,12 +261,24 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                 />
                 <div className="flex gap-2 flex-wrap">
                   {u.banned
-                    ? <button onClick={() => unban(u.id)} className="px-3 py-1.5 rounded-lg text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition">✅ Разбанить</button>
-                    : <button onClick={() => ban(u.id)} className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">🚫 Забанить</button>
+                    ? <button onClick={() => unban(u.id)} disabled={actionLoading === `unban-${u.id}`}
+                        className="px-3 py-1.5 rounded-lg text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition disabled:opacity-50">
+                        ✅ Разбанить
+                      </button>
+                    : <button onClick={() => ban(u.id)} disabled={actionLoading === `ban-${u.id}`}
+                        className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition disabled:opacity-50">
+                        🚫 Забанить
+                      </button>
                   }
                   {u.frozen
-                    ? <button onClick={() => unfreeze(u.id)} className="px-3 py-1.5 rounded-lg text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition">🔓 Разморозить</button>
-                    : <button onClick={() => freeze(u.id)} className="px-3 py-1.5 rounded-lg text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition">🧊 Заморозить</button>
+                    ? <button onClick={() => unfreeze(u.id)} disabled={actionLoading === `unfreeze-${u.id}`}
+                        className="px-3 py-1.5 rounded-lg text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition disabled:opacity-50">
+                        🔓 Разморозить
+                      </button>
+                    : <button onClick={() => freeze(u.id)} disabled={actionLoading === `freeze-${u.id}`}
+                        className="px-3 py-1.5 rounded-lg text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition disabled:opacity-50">
+                        🧊 Заморозить
+                      </button>
                   }
                   <button onClick={() => { setBotTarget(u.id); setTab('bot') }}
                     className="px-3 py-1.5 rounded-lg text-xs bg-primary/20 text-primary hover:bg-primary/30 transition">
@@ -218,8 +288,8 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                     className="px-3 py-1.5 rounded-lg text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition">
                     🔑 Сбросить пароль
                   </button>
-                  <button onClick={() => deleteUser(u.id)}
-                    className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
+                  <button onClick={() => deleteUser(u.id, u.displayName)} disabled={actionLoading === `delete-${u.id}`}
+                    className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition disabled:opacity-50">
                     🗑️ Удалить
                   </button>
                 </div>
@@ -233,19 +303,10 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
           <>
             <div className="bg-sidebar rounded-xl p-4 border border-border space-y-3">
               <p className="text-sm font-medium">Новый ивент</p>
-              <input
-                placeholder="Заголовок ивента"
-                value={evTitle}
-                onChange={e => setEvTitle(e.target.value)}
-                className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
-              />
-              <textarea
-                placeholder="Описание (необязательно)"
-                value={evDesc}
-                onChange={e => setEvDesc(e.target.value)}
-                rows={3}
-                className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none"
-              />
+              <input placeholder="Заголовок ивента" value={evTitle} onChange={e => setEvTitle(e.target.value)}
+                className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary" />
+              <textarea placeholder="Описание (необязательно)" value={evDesc} onChange={e => setEvDesc(e.target.value)} rows={3}
+                className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none" />
               <button onClick={createEvent} disabled={evCreating || !evTitle.trim()}
                 className="w-full py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
                 {evCreating ? 'Создание...' : '📢 Создать и разослать всем'}
@@ -283,14 +344,9 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
             </div>
-            <textarea
-              placeholder="Текст сообщения..."
-              value={botText}
-              onChange={e => setBotText(e.target.value)}
-              rows={5}
-              className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none"
-            />
-            {botMsg && <p className="text-xs text-primary">{botMsg}</p>}
+            <textarea placeholder="Текст сообщения..." value={botText} onChange={e => setBotText(e.target.value)} rows={5}
+              className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none" />
+            {botMsg && <p className={`text-xs ${botMsg.includes('Ошибка') ? 'text-red-400' : 'text-primary'}`}>{botMsg}</p>}
             <button onClick={sendBotMessage} disabled={botSending || !botText.trim()}
               className="w-full py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
               {botSending ? 'Отправка...' : '🤖 Отправить'}
@@ -317,12 +373,12 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                 <p className="text-sm text-white bg-chat rounded-xl px-3 py-2 mb-3">{t.message}</p>
                 <div className="flex gap-2">
                   {t.status === 'open' && (
-                    <button onClick={async () => { await api.patch(`/admin/support/${t.id}`); setTickets(ts => ts.map(x => x.id === t.id ? { ...x, status: 'closed' } : x)) }}
+                    <button onClick={() => closeTicket(t.id)}
                       className="px-3 py-1.5 rounded-lg text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition">
                       ✅ Закрыть
                     </button>
                   )}
-                  <button onClick={async () => { await api.delete(`/admin/support/${t.id}`); setTickets(ts => ts.filter(x => x.id !== t.id)) }}
+                  <button onClick={() => deleteTicket(t.id)}
                     className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
                     🗑️ Удалить
                   </button>
@@ -345,20 +401,17 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
         <div className="bg-sidebar rounded-2xl p-6 w-80 shadow-2xl border border-border" onClick={e => e.stopPropagation()}>
           <p className="font-semibold mb-1">Сбросить пароль</p>
           <p className="text-xs text-muted mb-4">{resetModal.name}</p>
-          <input
-            type="text"
-            placeholder="Новый пароль"
-            value={newPassword}
+          <input type="password" placeholder="Новый пароль (мин. 6 символов)" value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
-            className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary mb-3"
-          />
-          {resetMsg && <p className="text-xs text-primary mb-2 text-center">{resetMsg}</p>}
+            onKeyDown={e => e.key === 'Enter' && resetPassword()}
+            className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary mb-3" />
+          {resetMsg && <p className={`text-xs mb-2 text-center ${resetMsg === 'Пароль изменён' ? 'text-primary' : 'text-red-400'}`}>{resetMsg}</p>}
           <div className="flex gap-2">
             <button onClick={() => setResetModal(null)}
               className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
               Отмена
             </button>
-            <button onClick={resetPassword} disabled={!newPassword.trim()}
+            <button onClick={resetPassword} disabled={!newPassword.trim() || newPassword.length < 6}
               className="flex-1 py-2 rounded-xl bg-yellow-500 text-white text-sm font-medium hover:bg-yellow-600 transition disabled:opacity-50">
               Сохранить
             </button>

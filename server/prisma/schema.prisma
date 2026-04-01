@@ -39,6 +39,7 @@ model Chat {
   name        String
   avatar      String?
   description String?
+  inviteCode  String?  @unique
   createdAt   DateTime @default(now())
 
   members  ChatMember[]

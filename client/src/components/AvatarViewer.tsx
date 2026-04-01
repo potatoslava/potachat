@@ -6,10 +6,22 @@ interface AvatarEntry { id: string; avatar: string; createdAt: string }
 export default function AvatarViewer({ userId, name, onClose }: { userId: string; name: string; onClose: () => void }) {
   const [history, setHistory] = useState<AvatarEntry[]>([])
   const [current, setCurrent] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get(`/users/${userId}/avatars`).then(({ data }) => setHistory(data))
+    setCurrent(0)
+    setLoading(true)
+    api.get(`/users/${userId}/avatars`)
+      .then(({ data }) => setHistory(data))
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false))
   }, [userId])
+
+  if (loading) return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   if (!history.length) return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
@@ -17,7 +29,7 @@ export default function AvatarViewer({ userId, name, onClose }: { userId: string
     </div>
   )
 
-  const entry = history[current]
+  const entry = history[Math.min(current, history.length - 1)]
 
   return (
     <div className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50" onClick={onClose}>

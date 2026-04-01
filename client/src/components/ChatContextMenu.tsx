@@ -1,5 +1,6 @@
 import api from '../lib/api'
 import { useChatStore } from '../store/chatStore'
+import { useAuthStore } from '../store/authStore'
 import type { Chat } from '../types'
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 
 export default function ChatContextMenu({ chat, onClose, position }: Props) {
   const { chats, setChats, setActiveChat, activeChat } = useChatStore()
+  const { user } = useAuthStore()
 
   const deleteChat = async () => {
     try {
@@ -21,9 +23,8 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
   }
 
   const blockUser = async () => {
-    // Find other member username from chat name for private chats
     try {
-      const otherId = chat.members?.find(m => m.id !== undefined)?.id
+      const otherId = chat.members?.find(m => m.id !== user?.id)?.id
       if (otherId) await api.post(`/users/block/${otherId}`)
     } catch {}
     onClose()

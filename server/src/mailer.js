@@ -27,7 +27,8 @@ async function sendVerificationCode(email, code) {
         'api-key': apiKey,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body)
-      }
+      },
+      timeout: 10000
     }, (res) => {
       let data = ''
       res.on('data', chunk => data += chunk)
@@ -41,6 +42,7 @@ async function sendVerificationCode(email, code) {
       })
     })
     req.on('error', reject)
+    req.on('timeout', () => { req.destroy(); reject(new Error('Email request timed out')) })
     req.write(body)
     req.end()
   })

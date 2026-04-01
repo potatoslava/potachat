@@ -44,16 +44,23 @@ export default function AuthPage() {
     setVerifyError('')
     try {
       await api.post('/auth/verify-email', { userId, code })
-      if (pendingAuth) setAuth(pendingAuth.user, pendingAuth.token)
+      if (pendingAuth) {
+        setAuth(pendingAuth.user, pendingAuth.token)
+        window.location.reload()
+      }
     } catch (err: any) {
       setVerifyError(err.response?.data?.message || 'Неверный код')
     }
   }
 
   const resend = async () => {
-    await api.post('/auth/resend-code', { userId })
-    setResent(true)
-    setTimeout(() => setResent(false), 5000)
+    try {
+      await api.post('/auth/resend-code', { userId })
+      setResent(true)
+      setTimeout(() => setResent(false), 5000)
+    } catch (err: any) {
+      setVerifyError(err.response?.data?.message || 'Не удалось отправить код')
+    }
   }
 
   if (screen === 'verify') {

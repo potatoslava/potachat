@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
 import AvatarViewer from './AvatarViewer'
+import GroupInfoModal from './GroupInfoModal'
 
 export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers } = useChatStore()
@@ -18,14 +19,22 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [sendError, setSendError] = useState('')
   const [showAvatarViewer, setShowAvatarViewer] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
+  const [showGroupInfo, setShowGroupInfo] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : []
 
   useEffect(() => {
     if (!activeChat) return
+    // Сбрасываем ввод при смене чата
+    setText('')
+    setReplyTo(null)
+    setSendError('')
+    setShowGroupInfo(false)
     // Всегда загружаем свежие сообщения с сервера
-    api.get(`/chats/${activeChat.id}/messages`).then(({ data }) => setMessages(activeChat.id, data))
+    api.get(`/chats/${activeChat.id}/messages`)
+      .then(({ data }) => setMessages(activeChat.id, data))
+      .catch(() => {})
     socket.emit('join-chat', activeChat.id)
     return () => { socket.emit('leave-chat', activeChat.id) }
   }, [activeChat?.id])
@@ -44,10 +53,45 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     }
     const onEdit = (msg: Message) => { if (msg.chatId === activeChat?.id) editMessage(msg.chatId, msg) }
     const onDelete = ({ id, chatId }: { id: string; chatId: string }) => { if (chatId === activeChat?.id) deleteMessage(chatId, id) }
+
+    const onChatUpdate = (data: any) => {
+      if (data.id === activeChat?.id) {
+        const s = useChatStore.getState()
+        s.setChats(s.chats.map(c => c.id === data.id ? { ...c, name: data.name, avatar: data.avatar, description: data.description } : c))
+        if (s.activeChat?.id === data.id) s.setActiveChat({ ...s.activeChat, name: data.name, avatar: data.avatar, description: data.description })
+      }
+    }
+
+    const onMemberAdd = (data: any) => {
+      if (data.chatId === activeChat?.id) {
+        const s = useChatStore.getState()
+        s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: [...(c.members || []), data.member] } : c))
+        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat, members: [...(s.activeChat.members || []), data.member] })
+      }
+    }
+
+    const onMemberRemove = (data: any) => {
+      if (data.chatId === activeChat?.id) {
+        const s = useChatStore.getState()
+        s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: (c.members || []).filter(m => m.id !== data.userId) } : c))
+        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat, members: (s.activeChat.members || []).filter(m => m.id !== data.userId) })
+      }
+    }
+
     socket.on('message', onMessage)
     socket.on('message:edit', onEdit)
     socket.on('message:delete', onDelete)
-    return () => { socket.off('message', onMessage); socket.off('message:edit', onEdit); socket.off('message:delete', onDelete) }
+    socket.on('chat:update', onChatUpdate)
+    socket.on('chat:member_add', onMemberAdd)
+    socket.on('chat:member_remove', onMemberRemove)
+    return () => {
+      socket.off('message', onMessage)
+      socket.off('message:edit', onEdit)
+      socket.off('message:delete', onDelete)
+      socket.off('chat:update', onChatUpdate)
+      socket.off('chat:member_add', onMemberAdd)
+      socket.off('chat:member_remove', onMemberRemove)
+    }
   }, [activeChat?.id])
 
   const send = async () => {
@@ -77,6 +121,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       const { data } = await api.post(`/chats/${activeChat.id}/messages/file`, form)
       addMessage(activeChat.id, data)
       updateLastMessage(activeChat.id, data)
+    } catch (e: any) {
+      setSendError(e.response?.data?.message || 'Ошибка загрузки файла')
+      setTimeout(() => setSendError(''), 3000)
     } finally { setUploading(false) }
   }, [activeChat])
 
@@ -118,8 +165,12 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         )}
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden cursor-pointer"
           onClick={() => {
-            const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
-            if (otherId) setShowAvatarViewer(otherId)
+            if (activeChat.type === 'private') {
+              const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
+              if (otherId) setShowAvatarViewer(otherId)
+            } else {
+              setShowGroupInfo(true)
+            }
           }}>
           {(() => {
             const other = activeChat.members?.find(m => m.id !== user?.id)
@@ -138,7 +189,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                   const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
                   return otherId && onlineUsers[otherId] ? '🟢 в сети' : '⚫ не в сети'
                 })()
-              : activeChat.type === 'group' ? 'группа' : 'канал'}
+              : `${activeChat.members?.length || 0} участников`}
           </p>
         </div>
       </div>
@@ -153,12 +204,16 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
             onReply={() => setReplyTo(msg)}
             onEdit={async (t) => {
-              const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text: t })
-              editMessage(activeChat!.id, data)
+              try {
+                const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text: t })
+                editMessage(activeChat!.id, data)
+              } catch { /* сообщение не обновится, но не упадёт */ }
             }}
             onDelete={async () => {
-              await api.delete(`/chats/${activeChat!.id}/messages/${msg.id}`)
-              deleteMessage(activeChat!.id, msg.id)
+              try {
+                await api.delete(`/chats/${activeChat!.id}/messages/${msg.id}`)
+                deleteMessage(activeChat!.id, msg.id)
+              } catch { /* сообщение не удалится, но не упадёт */ }
             }}
           />
         ))}
@@ -221,6 +276,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         name={activeChat.name}
         onClose={() => setShowAvatarViewer(null)}
       />
+    )}
+    {showGroupInfo && activeChat && (
+      <GroupInfoModal chat={activeChat} onClose={() => setShowGroupInfo(false)} />
     )}
   </>
   )

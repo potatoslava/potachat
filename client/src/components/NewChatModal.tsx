@@ -9,14 +9,25 @@ export default function NewChatModal({ onClose }: Props) {
   const [username, setUsername] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false)
   const { chats, setChats, setActiveChat } = useChatStore()
 
-  const create = async () => {
+  const switchTab = (t: 'private' | 'group' | 'channel') => {
+    setTab(t)
+    setUsername('')
+    setName('')
     setError('')
+  }
+
+  const create = async () => {
+    if (creating) return
+    setError('')
+    setCreating(true)
     try {
       if (tab === 'private') {
         const { data } = await api.post('/chats/private', { username })
-        setChats([data, ...chats])
+        const exists = chats.find(c => c.id === data.id)
+        if (!exists) setChats([data, ...chats])
         setActiveChat(data)
       } else {
         const { data } = await api.post('/chats/group', { name, type: tab })
@@ -26,6 +37,8 @@ export default function NewChatModal({ onClose }: Props) {
       onClose()
     } catch (e: any) {
       setError(e.response?.data?.message || 'Ошибка')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -38,7 +51,7 @@ export default function NewChatModal({ onClose }: Props) {
           {(['private', 'group', 'channel'] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => switchTab(t)}
               className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${tab === t ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}
             >
               {t === 'private' ? 'Личный' : t === 'group' ? 'Группа' : 'Канал'}
@@ -68,8 +81,9 @@ export default function NewChatModal({ onClose }: Props) {
           <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
             Отмена
           </button>
-          <button onClick={create} className="flex-1 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition">
-            Создать
+          <button onClick={create} disabled={creating}
+            className="flex-1 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
+            {creating ? 'Создание...' : 'Создать'}
           </button>
         </div>
       </div>

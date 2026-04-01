@@ -32,15 +32,20 @@ export default function VerifyEmailPage() {
       await api.post('/auth/verify-email', { userId: user!.id, code })
       const { data } = await api.get('/users/me')
       setAuth(data, token!)
+      window.location.reload()
     } catch (err: any) {
       setError(err.response?.data?.message || 'Неверный код')
     }
   }
 
   const resend = async () => {
-    await api.post('/auth/resend-code', { userId: user!.id })
-    setResent(true)
-    setTimeout(() => setResent(false), 5000)
+    try {
+      await api.post('/auth/resend-code', { userId: user!.id })
+      setResent(true)
+      setTimeout(() => setResent(false), 5000)
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось отправить код')
+    }
   }
 
   return (

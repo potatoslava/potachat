@@ -10,8 +10,8 @@ cmds = [
 [phases.build]
 cmds = [
   "npm run build --prefix client",
-  "npx prisma generate --schema=server/prisma/schema.prisma"
+  "npm run db:generate --prefix server"
 ]
 
 [start]
-cmd = "cd server && npx prisma migrate deploy && node src/index.js"
+cmd = "npm run db:migrate --prefix server && node server/src/index.js"

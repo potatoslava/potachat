@@ -17,6 +17,7 @@ interface Props {
 export default function SearchPanel({ query, onClose }: Props) {
   const [results, setResults] = useState<SearchResults>({ users: [], chats: [], channels: [] })
   const [loading, setLoading] = useState(false)
+  const [openError, setOpenError] = useState('')
   const { chats, setChats, setActiveChat } = useChatStore()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -32,6 +33,9 @@ export default function SearchPanel({ query, onClose }: Props) {
         setLoading(false)
       }
     }, 300)
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
   }, [query])
 
   const openPrivateChat = async (user: User) => {
@@ -41,7 +45,10 @@ export default function SearchPanel({ query, onClose }: Props) {
       if (!exists) setChats([data, ...chats])
       setActiveChat(data)
       onClose()
-    } catch {}
+    } catch (e: any) {
+      setOpenError(e.response?.data?.message || 'Ошибка')
+      setTimeout(() => setOpenError(''), 3000)
+    }
   }
 
   const openChat = (item: { id: string; name: string; type: string; avatar?: string }) => {
@@ -65,6 +72,7 @@ export default function SearchPanel({ query, onClose }: Props) {
           <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}
+      {openError && <p className="text-red-400 text-xs text-center py-2 px-4">{openError}</p>}
 
       {!loading && query.trim() && isEmpty && (
         <div className="text-center text-muted text-sm py-8">Ничего не найдено</div>

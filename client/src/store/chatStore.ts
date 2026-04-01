@@ -27,21 +27,25 @@ export const useChatStore = create<ChatState>((set) => ({
   setChats: (chats) => set({ chats }),
   setActiveChat: (chat) => set({ activeChat: chat }),
   addMessage: (chatId, message) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [chatId]: [...(state.messages[chatId] || []), message],
-      },
-    })),
+    set((state) => {
+      const existing = state.messages[chatId] || []
+      if (existing.some((m) => m.id === message.id)) return state
+      return {
+        messages: {
+          ...state.messages,
+          [chatId]: [...existing, message],
+        },
+      }
+    }),
   setMessages: (chatId, messages) =>
     set((state) => ({
       messages: { ...state.messages, [chatId]: messages },
     })),
   updateLastMessage: (chatId, message) =>
     set((state) => ({
-      chats: state.chats.map((c) =>
-        c.id === chatId ? { ...c, lastMessage: message } : c
-      ),
+      chats: state.chats
+        .map((c) => c.id === chatId ? { ...c, lastMessage: message } : c)
+        .sort((a, b) => new Date(b.lastMessage?.createdAt || b.createdAt).getTime() - new Date(a.lastMessage?.createdAt || a.createdAt).getTime()),
     })),
   editMessage: (chatId, message) =>
     set((state) => ({

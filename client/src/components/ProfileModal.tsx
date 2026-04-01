@@ -20,9 +20,9 @@ export default function ProfileModal({ onClose }: Props) {
     try {
       const { data } = await api.patch('/users/me', { displayName, bio })
       setAuth(data, token)
-      // перезагружаем чаты чтобы обновить displayName везде
       api.get('/chats').then(({ data }) => setChats(data))
       setMsg('Сохранено')
+      setTimeout(() => setMsg(''), 2000)
     } catch { setMsg('Ошибка') }
     finally { setSaving(false) }
   }
@@ -32,10 +32,11 @@ export default function ProfileModal({ onClose }: Props) {
     if (!file) return
     const form = new FormData()
     form.append('avatar', file)
-    const { data } = await api.post('/users/me/avatar', form)
-    setAuth(data, token)
-    // перезагружаем чаты чтобы новая ава появилась у собеседников
-    api.get('/chats').then(({ data }) => setChats(data))
+    try {
+      const { data } = await api.post('/users/me/avatar', form)
+      setAuth(data, token)
+      api.get('/chats').then(({ data }) => setChats(data))
+    } catch { setMsg('Ошибка загрузки аватара') }
   }
 
   return (
@@ -93,7 +94,7 @@ export default function ProfileModal({ onClose }: Props) {
           </div>
         </div>
 
-        {msg && <p className="text-xs text-primary mt-2 text-center">{msg}</p>}
+        {msg && <p className={`text-xs mt-2 text-center ${msg === 'Сохранено' ? 'text-primary' : 'text-red-400'}`}>{msg}</p>}
 
         <div className="flex gap-2 mt-4">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">

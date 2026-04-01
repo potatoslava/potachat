@@ -44,7 +44,11 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
 
 
-  useEffect(() => { api.get('/chats').then(({ data }) => setChats(data)) }, [])
+  useEffect(() => {
+    api.get('/chats')
+      .then(({ data }) => setChats(data))
+      .catch(() => {})
+  }, [])
 
 
 
@@ -216,7 +220,8 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
 function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void }) {
 
-  const isBot = chat.name === 'CocoDackBot'
+  const BOT_USERNAMES = ['CocoDackBot', 'PotaChatBot']
+  const isBot = chat.type === 'private' && chat.members?.some(m => BOT_USERNAMES.includes(m.username))
 
   const { onlineUsers } = useChatStore()
 

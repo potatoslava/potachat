@@ -9,4 +9,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Автоматический разлогин при 401 (протухший/невалидный токен)
+// Исключаем auth-роуты чтобы не было цикла при неверном пароле
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !error.config?.url?.startsWith('/auth/')) {
+      useAuthStore.getState().logout()
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default api

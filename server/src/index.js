@@ -17,10 +17,10 @@ const prisma = new PrismaClient()
 const app = express()
 const server = http.createServer(app)
 const io = new Server(server, { cors: { origin: '*' } })
-const JWT_SECRET = process.env.JWT_SECRET || 'cocodack_secret_key'
+const JWT_SECRET = process.env.JWT_SECRET || 'CocoDack_secret_key'
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '5mb' }))
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 app.use('/api/auth', authRoutes)
@@ -34,6 +34,8 @@ app.use(express.static(clientDist))
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
     res.sendFile(path.join(clientDist, 'index.html'))
+  } else {
+    res.status(404).json({ message: 'Not found' })
   }
 })
 
@@ -52,22 +54,54 @@ io.use((socket, next) => {
 io.on('connection', async (socket) => {
   socket.join(`user:${socket.userId}`)
   await prisma.user.update({ where: { id: socket.userId }, data: { online: true } }).catch(() => {})
-  io.emit('user:status', { userId: socket.userId, online: true })
 
-  socket.on('join-chat', (chatId) => socket.join(`chat:${chatId}`))
+  // Уведомляем только тех, у кого есть общие чаты с этим пользователем
+  const memberships = await prisma.chatMember.findMany({
+    where: { userId: socket.userId },
+    include: { chat: { include: { members: { where: { userId: { not: socket.userId } } } } } }
+  }).catch(() => [])
+  const contactIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
+  contactIds.forEach(id => {
+    io.to(`user:${id}`).emit('user:status', { userId: socket.userId, online: true })
+  })
+
+  socket.on('join-chat', async (chatId) => {
+    // Проверяем что пользователь является участником чата
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId, userId: socket.userId } }
+    }).catch(() => null)
+    if (member) socket.join(`chat:${chatId}`)
+  })
   socket.on('leave-chat', (chatId) => socket.leave(`chat:${chatId}`))
 
   socket.on('disconnect', async () => {
     await prisma.user.update({ where: { id: socket.userId }, data: { online: false, lastSeen: new Date() } }).catch(() => {})
-    io.emit('user:status', { userId: socket.userId, online: false })
+    // Уведомляем только контакты
+    const memberships = await prisma.chatMember.findMany({
+      where: { userId: socket.userId },
+      include: { chat: { include: { members: { where: { userId: { not: socket.userId } } } } } }
+    }).catch(() => [])
+    const contactIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
+    contactIds.forEach(id => {
+      io.to(`user:${id}`).emit('user:status', { userId: socket.userId, online: false })
+    })
   })
 })
 
 app.set('io', io)
 
+// Global error handler — catches unhandled async errors in routes
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ message: 'Внутренняя ошибка сервера' })
+})
+
 const PORT = process.env.PORT || 5000
 server.listen(PORT, async () => {
   console.log(`CocoDack server running on port ${PORT}`)
+  if (!process.env.DATABASE_URL) console.warn('WARNING: DATABASE_URL not set, using default')
+  if (!process.env.JWT_SECRET) console.warn('WARNING: JWT_SECRET not set, using default insecure key')
+  if (!process.env.BREVO_API_KEY) console.warn('WARNING: BREVO_API_KEY not set, email sending will fail')
   await prisma.user.updateMany({ data: { online: false } })
   getOrCreateBot().catch(console.error)
 })

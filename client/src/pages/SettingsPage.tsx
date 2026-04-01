@@ -53,9 +53,13 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
     if (!file) return
     const form = new FormData()
     form.append('avatar', file)
-    const { data } = await api.post('/users/me/avatar', form)
-    setAuth(data, token)
-    api.get('/chats').then(({ data }) => setChats(data))
+    try {
+      const { data } = await api.post('/users/me/avatar', form)
+      setAuth(data, token)
+      api.get('/chats').then(({ data }) => setChats(data))
+    } catch {
+      // silent fail — аватар не обновится, но приложение не упадёт
+    }
   }
 
   return (
@@ -129,7 +133,10 @@ function ProfileSection() {
       api.get('/chats').then(({ data }) => setChats(data))
       setMsg('Сохранено')
       setTimeout(() => setMsg(''), 2000)
-    } catch { setMsg('Ошибка') }
+    } catch (e: any) {
+      setMsg(e.response?.data?.message || 'Ошибка сохранения')
+      setTimeout(() => setMsg(''), 3000)
+    }
     finally { setSaving(false) }
   }
 
@@ -173,6 +180,10 @@ function AccountSection() {
 
   const saveUsername = async () => {
     if (!newUsername.trim() || newUsername === user?.username) return
+    if (newUsername.length < 3 || newUsername.length > 32) {
+      setMsg('Username должен быть от 3 до 32 символов')
+      return
+    }
     setSaving(true)
     try {
       const { data } = await api.patch('/users/me', { username: newUsername })
