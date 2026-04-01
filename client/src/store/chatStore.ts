@@ -7,6 +7,7 @@ interface ChatState {
   messages: Record<string, Message[]>
   onlineUsers: Record<string, boolean>
   lastSeenUsers: Record<string, string>
+  typingUsers: Record<string, string[]> // chatId -> [displayName, ...]
   setChats: (chats: Chat[]) => void
   setActiveChat: (chat: Chat | null) => void
   addMessage: (chatId: string, message: Message) => void
@@ -19,6 +20,7 @@ interface ChatState {
   updateUserAvatar: (userId: string, avatar: string) => void
   incrementUnread: (chatId: string, message: Message) => void
   clearUnread: (chatId: string) => void
+  setTyping: (chatId: string, displayName: string, typing: boolean) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -27,6 +29,7 @@ export const useChatStore = create<ChatState>((set) => ({
   messages: {},
   onlineUsers: {},
   lastSeenUsers: {},
+  typingUsers: {},
   setChats: (chats) => set({ chats }),
   setActiveChat: (chat) => set({ activeChat: chat }),
   addMessage: (chatId, message) =>
@@ -104,4 +107,12 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => ({
       chats: state.chats.map((c) => c.id === chatId ? { ...c, unreadCount: 0 } : c)
     })),
+  setTyping: (chatId, displayName, typing) =>
+    set((state) => {
+      const current = state.typingUsers[chatId] || []
+      const updated = typing
+        ? current.includes(displayName) ? current : [...current, displayName]
+        : current.filter(n => n !== displayName)
+      return { typingUsers: { ...state.typingUsers, [chatId]: updated } }
+    }),
 }))

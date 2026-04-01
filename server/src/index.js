@@ -53,6 +53,9 @@ io.use((socket, next) => {
 
 io.on('connection', async (socket) => {
   socket.join(`user:${socket.userId}`)
+  // Сохраняем displayName для typing индикатора
+  const userInfo = await prisma.user.findUnique({ where: { id: socket.userId }, select: { displayName: true } }).catch(() => null)
+  socket.displayName = userInfo?.displayName || socket.userId
   await prisma.user.update({ where: { id: socket.userId }, data: { online: true } }).catch(() => {})
 
   // Уведомляем только тех, у кого есть общие чаты с этим пользователем
@@ -73,6 +76,13 @@ io.on('connection', async (socket) => {
     if (member) socket.join(`chat:${chatId}`)
   })
   socket.on('leave-chat', (chatId) => socket.leave(`chat:${chatId}`))
+
+  socket.on('typing:start', ({ chatId }) => {
+    socket.to(`chat:${chatId}`).emit('typing:start', { chatId, displayName: socket.displayName })
+  })
+  socket.on('typing:stop', ({ chatId }) => {
+    socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, displayName: socket.displayName })
+  })
 
   socket.on('disconnect', async () => {
     const now = new Date()

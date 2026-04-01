@@ -70,7 +70,15 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
   const isSearching = searchFocused && search.trim().length > 0
 
-  const filtered = chats.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
+  // Закреплённые чаты наверху
+  const pinnedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] } })()
+  const filtered = chats
+    .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const aPin = pinnedIds.includes(a.id) ? 1 : 0
+      const bPin = pinnedIds.includes(b.id) ? 1 : 0
+      return bPin - aPin
+    })
 
 
 
@@ -222,6 +230,7 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
 
   const BOT_USERNAMES = ['CocoDackBot', 'PotaChatBot']
   const isBot = chat.type === 'private' && chat.members?.some(m => BOT_USERNAMES.includes(m.username))
+  const isPinned = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]').includes(chat.id) } catch { return false } })()
 
   const { onlineUsers } = useChatStore()
 
@@ -264,6 +273,7 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
           </span>
 
           {chat.lastMessage && <span className="text-xs text-muted flex-shrink-0 ml-2">{formatDistanceToNow(new Date(chat.lastMessage.createdAt), { locale: ru, addSuffix: false })}</span>}
+            {isPinned && <svg className="w-3 h-3 text-muted flex-shrink-0 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>}
 
         </div>
 

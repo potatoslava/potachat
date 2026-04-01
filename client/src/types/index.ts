@@ -39,6 +39,7 @@ export interface Chat {
   description?: string
   inviteCode?: string
   myRole?: string
+  pinned?: boolean
   members?: { id: string; username: string; displayName: string; avatar?: string; role?: string }[]
   lastMessage?: Message
   unreadCount: number

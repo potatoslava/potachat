@@ -11,7 +11,7 @@ import AvatarViewer from './AvatarViewer'
 import GroupInfoModal from './GroupInfoModal'
 
 export default function ChatWindow({ onBack }: { onBack?: () => void }) {
-  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers, lastSeenUsers } = useChatStore()
+  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers, lastSeenUsers, typingUsers, setTyping } = useChatStore()
   const { user } = useAuthStore()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -20,7 +20,10 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [showAvatarViewer, setShowAvatarViewer] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [showGroupInfo, setShowGroupInfo] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [lightboxScale, setLightboxScale] = useState(1)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : []
 
@@ -94,6 +97,16 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     socket.on('chat:update', onChatUpdate)
     socket.on('chat:member_add', onMemberAdd)
     socket.on('chat:member_remove', onMemberRemove)
+
+    const onTypingStart = ({ chatId, displayName }: { chatId: string; displayName: string }) => {
+      setTyping(chatId, displayName, true)
+    }
+    const onTypingStop = ({ chatId, displayName }: { chatId: string; displayName: string }) => {
+      setTyping(chatId, displayName, false)
+    }
+    socket.on('typing:start', onTypingStart)
+    socket.on('typing:stop', onTypingStop)
+
     return () => {
       socket.off('message', onMessage)
       socket.off('message:edit', onEdit)
@@ -101,13 +114,27 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       socket.off('chat:update', onChatUpdate)
       socket.off('chat:member_add', onMemberAdd)
       socket.off('chat:member_remove', onMemberRemove)
+      socket.off('typing:start', onTypingStart)
+      socket.off('typing:stop', onTypingStop)
     }
   }, [activeChat?.id])
+
+  const handleTextChange = (val: string) => {
+    setText(val)
+    if (!activeChat) return
+    socket.emit('typing:start', { chatId: activeChat.id })
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => {
+      socket.emit('typing:stop', { chatId: activeChat.id })
+    }, 2000)
+  }
 
   const send = async () => {
     if (!text.trim() || !activeChat || sending) return
     setSending(true)
     setSendError('')
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    socket.emit('typing:stop', { chatId: activeChat.id })
     try {
       const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text, replyToId: replyTo?.id })
       addMessage(activeChat.id, data)
@@ -192,30 +219,47 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             return activeChat.type === 'channel' ? '#' : activeChat.name[0]?.toUpperCase()
           })()}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm">{activeChat.name}</p>
-          <p className="text-xs text-muted">
-            {activeChat.type === 'private'
-              ? (() => {
-                  const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
-                  if (otherId && onlineUsers[otherId]) return '🟢 в сети'
-                  const ls = otherId ? lastSeenUsers[otherId] : null
-                  if (ls) {
-                    const diff = Date.now() - new Date(ls).getTime()
-                    const mins = Math.floor(diff / 60000)
-                    const hours = Math.floor(diff / 3600000)
-                    const days = Math.floor(diff / 86400000)
-                    if (mins < 1) return 'был(а) только что'
-                    if (mins < 60) return `был(а) ${mins} мин. назад`
-                    if (hours < 24) return `был(а) ${hours} ч. назад`
-                    return `был(а) ${days} дн. назад`
-                  }
-                  return '⚫ не в сети'
-                })()
-              : `${activeChat.members?.length || 0} участников`}
-          </p>
+          {(() => {
+            const typing = typingUsers[activeChat.id] || []
+            if (typing.length > 0) {
+              const names = typing.slice(0, 2).join(', ')
+              return (
+                <p className="text-xs text-primary flex items-center gap-1.5">
+                  <span className="flex gap-0.5 items-center">
+                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                  {names} печатает...
+                </p>
+              )
+            }
+            return (
+              <p className="text-xs text-muted">
+                {activeChat.type === 'private'
+                  ? (() => {
+                      const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
+                      if (otherId && onlineUsers[otherId]) return '🟢 в сети'
+                      const ls = otherId ? lastSeenUsers[otherId] : null
+                      if (ls) {
+                        const diff = Date.now() - new Date(ls).getTime()
+                        const mins = Math.floor(diff / 60000)
+                        const hours = Math.floor(diff / 3600000)
+                        const days = Math.floor(diff / 86400000)
+                        if (mins < 1) return 'был(а) только что'
+                        if (mins < 60) return `был(а) ${mins} мин. назад`
+                        if (hours < 24) return `был(а) ${hours} ч. назад`
+                        return `был(а) ${days} дн. назад`
+                      }
+                      return '⚫ не в сети'
+                    })()
+                  : `${activeChat.members?.length || 0} участников`}
+              </p>
+            )
+          })()}
         </div>
-      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
@@ -226,6 +270,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             isOwn={msg.senderId === user?.id}
             showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
             onReply={() => setReplyTo(msg)}
+            onImageClick={(url) => { setLightboxUrl(url); setLightboxScale(1) }}
             onEdit={async (t) => {
               try {
                 const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text: t })
@@ -275,7 +320,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
               <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-end gap-2">
                 <textarea
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => handleTextChange(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                   placeholder="Сообщение..."
                   rows={1}
@@ -303,13 +348,42 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     {showGroupInfo && activeChat && (
       <GroupInfoModal chat={activeChat} onClose={() => setShowGroupInfo(false)} />
     )}
+    {lightboxUrl && (
+      <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center"
+        onClick={() => setLightboxUrl(null)}>
+        <div className="relative" onClick={e => e.stopPropagation()}>
+          <img
+            src={lightboxUrl}
+            alt=""
+            style={{ transform: `scale(${lightboxScale})`, transition: 'transform 0.2s', maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }}
+            className="rounded-xl"
+          />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            <button onClick={() => setLightboxScale(s => Math.max(0.5, s - 0.25))}
+              className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition text-lg">−</button>
+            <button onClick={() => setLightboxScale(1)}
+              className="px-3 h-9 rounded-full bg-white/20 text-white text-xs hover:bg-white/30 transition">{Math.round(lightboxScale * 100)}%</button>
+            <button onClick={() => setLightboxScale(s => Math.min(4, s + 0.25))}
+              className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition text-lg">+</button>
+          </div>
+          <button onClick={() => setLightboxUrl(null)}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition">✕</button>
+          <a href={lightboxUrl} download className="absolute top-2 left-2 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    )}
   </>
   )
 }
 
-function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
+function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onImageClick }: {
   msg: Message; isOwn: boolean; showAvatar: boolean
   onReply: () => void; onEdit: (text: string) => void; onDelete: () => void
+  onImageClick: (url: string) => void
 }) {
   const isImage = msg.fileType === 'image'
   const isVideo = msg.fileType === 'video'
@@ -385,7 +459,8 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete }: {
             </div>
           )}
 
-          {isImage && <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1" alt={msg.fileName} />}
+          {isImage && <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1 cursor-zoom-in" alt={msg.fileName}
+            onClick={(e) => { e.stopPropagation(); onImageClick(`/uploads/${msg.fileUrl}`) }} />}
           {isVideo && <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />}
           {msg.fileType && !isImage && !isVideo && (
             <a href={`/uploads/${msg.fileUrl}`} download={msg.fileName} className="flex items-center gap-2 text-primary text-sm hover:underline mb-1">
