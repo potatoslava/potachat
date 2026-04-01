@@ -269,7 +269,13 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
 
         <div className="flex justify-between items-center mt-0.5">
 
-          <p className="text-xs text-muted truncate">{chat.lastMessage?.text || (chat.lastMessage?.fileType ? '📎 Файл' : 'Нет сообщений')}</p>
+          <p className="text-xs text-muted truncate">
+            {(() => {
+              const draft = localStorage.getItem(`draft:${chat.id}`)
+              if (draft) return <span className="text-primary/70">✏️ {draft}</span>
+              return chat.lastMessage?.text || (chat.lastMessage?.fileType ? '📎 Файл' : 'Нет сообщений')
+            })()}
+          </p>
 
           {chat.unreadCount > 0 && <span className="ml-2 bg-primary text-white text-xs rounded-full px-1.5 py-0.5 flex-shrink-0">{chat.unreadCount}</span>}
 

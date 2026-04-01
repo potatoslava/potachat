@@ -6,6 +6,7 @@ interface ChatState {
   activeChat: Chat | null
   messages: Record<string, Message[]>
   onlineUsers: Record<string, boolean>
+  lastSeenUsers: Record<string, string>
   setChats: (chats: Chat[]) => void
   setActiveChat: (chat: Chat | null) => void
   addMessage: (chatId: string, message: Message) => void
@@ -14,6 +15,7 @@ interface ChatState {
   editMessage: (chatId: string, message: Message) => void
   deleteMessage: (chatId: string, messageId: string) => void
   setUserOnline: (userId: string, online: boolean) => void
+  setUserLastSeen: (userId: string, lastSeen: string) => void
   updateUserAvatar: (userId: string, avatar: string) => void
   incrementUnread: (chatId: string, message: Message) => void
   clearUnread: (chatId: string) => void
@@ -24,6 +26,7 @@ export const useChatStore = create<ChatState>((set) => ({
   activeChat: null,
   messages: {},
   onlineUsers: {},
+  lastSeenUsers: {},
   setChats: (chats) => set({ chats }),
   setActiveChat: (chat) => set({ activeChat: chat }),
   addMessage: (chatId, message) =>
@@ -66,6 +69,10 @@ export const useChatStore = create<ChatState>((set) => ({
   setUserOnline: (userId, online) =>
     set((state) => ({
       onlineUsers: { ...state.onlineUsers, [userId]: online },
+    })),
+  setUserLastSeen: (userId, lastSeen) =>
+    set((state) => ({
+      lastSeenUsers: { ...state.lastSeenUsers, [userId]: lastSeen },
     })),
   updateUserAvatar: (userId, avatar) =>
     set((state) => ({

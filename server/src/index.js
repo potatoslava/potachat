@@ -75,7 +75,8 @@ io.on('connection', async (socket) => {
   socket.on('leave-chat', (chatId) => socket.leave(`chat:${chatId}`))
 
   socket.on('disconnect', async () => {
-    await prisma.user.update({ where: { id: socket.userId }, data: { online: false, lastSeen: new Date() } }).catch(() => {})
+    const now = new Date()
+    await prisma.user.update({ where: { id: socket.userId }, data: { online: false, lastSeen: now } }).catch(() => {})
     // Уведомляем только контакты
     const memberships = await prisma.chatMember.findMany({
       where: { userId: socket.userId },
@@ -83,7 +84,7 @@ io.on('connection', async (socket) => {
     }).catch(() => [])
     const contactIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
     contactIds.forEach(id => {
-      io.to(`user:${id}`).emit('user:status', { userId: socket.userId, online: false })
+      io.to(`user:${id}`).emit('user:status', { userId: socket.userId, online: false, lastSeen: now.toISOString() })
     })
   })
 })

@@ -177,6 +177,7 @@ function AccountSection() {
   const [newPassword, setNewPassword] = useState('')
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const saveUsername = async () => {
     if (!newUsername.trim() || newUsername === user?.username) return
@@ -204,6 +205,18 @@ function AccountSection() {
       setTimeout(() => setMsg(''), 2000)
     } catch (e: any) { setMsg(e.response?.data?.message || 'Ошибка') }
     finally { setSaving(false) }
+  }
+
+  const deleteAccount = async () => {
+    if (!confirm('Удалить аккаунт навсегда? Все данные будут потеряны. Это действие необратимо.')) return
+    setDeleting(true)
+    try {
+      await api.delete('/users/me')
+      logout()
+    } catch (e: any) {
+      setMsg(e.response?.data?.message || 'Ошибка удаления')
+      setDeleting(false)
+    }
   }
 
   return (
@@ -238,6 +251,14 @@ function AccountSection() {
         <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sidebar-hover transition">
           <span className="text-lg">🚪</span>
           <span className="text-sm text-red-400">Выйти из аккаунта</span>
+        </button>
+      </div>
+
+      <div className="bg-sidebar rounded-2xl overflow-hidden">
+        <button onClick={deleteAccount} disabled={deleting}
+          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sidebar-hover transition disabled:opacity-50">
+          <span className="text-lg">🗑️</span>
+          <span className="text-sm text-red-500">{deleting ? 'Удаление...' : 'Удалить аккаунт'}</span>
         </button>
       </div>
     </div>

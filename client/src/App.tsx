@@ -13,6 +13,7 @@ export default function App() {
   const { user, token } = useAuthStore()
   const { activeChat, setActiveChat } = useChatStore()
   const setUserOnline = useChatStore((s) => s.setUserOnline)
+  const setUserLastSeen = useChatStore((s) => s.setUserLastSeen)
   const updateUserAvatar = useChatStore((s) => s.updateUserAvatar)
   const [showAdmin, setShowAdmin] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -53,8 +54,9 @@ export default function App() {
       })
     }).catch(() => {})
 
-    socket.on('user:status', ({ userId, online }: { userId: string; online: boolean }) => {
+    socket.on('user:status', ({ userId, online, lastSeen }: { userId: string; online: boolean; lastSeen?: string }) => {
       setUserOnline(userId, online)
+      if (!online && lastSeen) setUserLastSeen(userId, lastSeen)
     })
     socket.on('user:avatar', ({ userId, avatar }: { userId: string; avatar: string }) => {
       updateUserAvatar(userId, avatar)

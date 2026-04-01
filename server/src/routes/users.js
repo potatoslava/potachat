@@ -121,6 +121,14 @@ router.delete('/block/:userId', auth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// Delete own account
+router.delete('/me', auth, async (req, res, next) => {
+  try {
+    await prisma.user.delete({ where: { id: req.userId } })
+    res.json({ success: true })
+  } catch (e) { next(e) }
+})
+
 // Отправить тикет в поддержку
 router.post('/support', auth, async (req, res, next) => {
   try {

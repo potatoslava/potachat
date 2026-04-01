@@ -11,7 +11,7 @@ import AvatarViewer from './AvatarViewer'
 import GroupInfoModal from './GroupInfoModal'
 
 export default function ChatWindow({ onBack }: { onBack?: () => void }) {
-  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers } = useChatStore()
+  const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers, lastSeenUsers } = useChatStore()
   const { user } = useAuthStore()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -24,14 +24,24 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : []
 
+  // Сохраняем черновик при изменении текста
   useEffect(() => {
     if (!activeChat) return
-    // Сбрасываем ввод при смене чата
-    setText('')
+    if (text) {
+      localStorage.setItem(`draft:${activeChat.id}`, text)
+    } else {
+      localStorage.removeItem(`draft:${activeChat.id}`)
+    }
+  }, [text, activeChat?.id])
+
+  useEffect(() => {
+    if (!activeChat) return
+    // Восстанавливаем черновик
+    const draft = localStorage.getItem(`draft:${activeChat.id}`) || ''
+    setText(draft)
     setReplyTo(null)
     setSendError('')
     setShowGroupInfo(false)
-    // Всегда загружаем свежие сообщения с сервера
     api.get(`/chats/${activeChat.id}/messages`)
       .then(({ data }) => setMessages(activeChat.id, data))
       .catch(() => {})
@@ -103,6 +113,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       addMessage(activeChat.id, data)
       updateLastMessage(activeChat.id, data)
       setText('')
+      localStorage.removeItem(`draft:${activeChat.id}`)
       setReplyTo(null)
     } catch (e: any) {
       setSendError(e.response?.data?.message || '')
@@ -187,7 +198,19 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             {activeChat.type === 'private'
               ? (() => {
                   const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
-                  return otherId && onlineUsers[otherId] ? '🟢 в сети' : '⚫ не в сети'
+                  if (otherId && onlineUsers[otherId]) return '🟢 в сети'
+                  const ls = otherId ? lastSeenUsers[otherId] : null
+                  if (ls) {
+                    const diff = Date.now() - new Date(ls).getTime()
+                    const mins = Math.floor(diff / 60000)
+                    const hours = Math.floor(diff / 3600000)
+                    const days = Math.floor(diff / 86400000)
+                    if (mins < 1) return 'был(а) только что'
+                    if (mins < 60) return `был(а) ${mins} мин. назад`
+                    if (hours < 24) return `был(а) ${hours} ч. назад`
+                    return `был(а) ${days} дн. назад`
+                  }
+                  return '⚫ не в сети'
                 })()
               : `${activeChat.members?.length || 0} участников`}
           </p>
