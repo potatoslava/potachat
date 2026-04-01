@@ -22,8 +22,14 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [showGroupInfo, setShowGroupInfo] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [lightboxScale, setLightboxScale] = useState(1)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Message[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [forwardMsg, setForwardMsg] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : []
 
@@ -45,6 +51,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     setReplyTo(null)
     setSendError('')
     setShowGroupInfo(false)
+    setShowSearch(false)
+    setSearchQuery('')
+    setSearchResults([])
     api.get(`/chats/${activeChat.id}/messages`)
       .then(({ data }) => setMessages(activeChat.id, data))
       .catch(() => {})
@@ -122,6 +131,20 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       socket.off('typing:stop', onTypingStop)
     }
   }, [activeChat?.id])
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val)
+    if (!activeChat) return
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    if (!val.trim()) { setSearchResults([]); return }
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const { data } = await api.get(`/chats/${activeChat.id}/search?q=${encodeURIComponent(val)}`)
+        setSearchResults(data)
+      } finally { setSearchLoading(false) }
+    }, 300)
+  }
 
   const handleTextChange = (val: string) => {
     setText(val)
@@ -224,8 +247,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           })()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm">{activeChat.name}</p>
-          {(() => {
+          <p className="font-semibold text-sm">{activeChat.name}</p>          {(() => {
             const typing = typingUsers[activeChat.id] || []
             if (typing.length > 0) {
               const names = typing.slice(0, 2).join(', ')
@@ -264,7 +286,46 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             )
           })()}
         </div>
+        <button onClick={() => setShowSearch(v => !v)}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 ${showSearch ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
       </div>
+
+      {/* Search panel */}
+      {showSearch && (
+        <div className="px-4 py-2 bg-header border-b border-border flex-shrink-0">
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={e => handleSearchChange(e.target.value)}
+            placeholder="Поиск по сообщениям..."
+            className="w-full bg-chat border border-border rounded-xl px-4 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
+          />
+          {searchLoading && <p className="text-xs text-muted mt-1 text-center">Поиск...</p>}
+          {!searchLoading && searchQuery && searchResults.length === 0 && (
+            <p className="text-xs text-muted mt-1 text-center">Ничего не найдено</p>
+          )}
+          {searchResults.length > 0 && (
+            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+              {searchResults.map(msg => (
+                <div key={msg.id} className="px-3 py-2 bg-chat rounded-xl cursor-pointer hover:bg-sidebar-hover transition"
+                  onClick={() => {
+                    // Прокручиваем к сообщению если оно загружено
+                    const el = document.getElementById(`msg-${msg.id}`)
+                    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('ring-2', 'ring-primary'); setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 2000) }
+                    setShowSearch(false)
+                  }}>
+                  <p className="text-xs text-muted">{msg.sender?.displayName} · {format(new Date(msg.createdAt), 'dd.MM HH:mm', { locale: ru })}</p>
+                  <p className="text-sm text-white truncate">{msg.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
@@ -275,6 +336,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             isOwn={msg.senderId === user?.id}
             showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
             onReply={() => setReplyTo(msg)}
+            onForward={(m) => setForwardMsg(m)}
             onImageClick={(url) => { setLightboxUrl(url); setLightboxScale(1) }}
             onEdit={async (t) => {
               try {
@@ -353,6 +415,18 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     {showGroupInfo && activeChat && (
       <GroupInfoModal chat={activeChat} onClose={() => setShowGroupInfo(false)} />
     )}
+    {forwardMsg && (
+      <ForwardModal
+        msg={forwardMsg}
+        onClose={() => setForwardMsg(null)}
+        onForward={async (targetChatId) => {
+          try {
+            await api.post(`/chats/${activeChat!.id}/messages/${forwardMsg.id}/forward`, { targetChatId })
+            setForwardMsg(null)
+          } catch {}
+        }}
+      />
+    )}
     {lightboxUrl && (
       <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center"
         onClick={() => setLightboxUrl(null)}>
@@ -385,10 +459,10 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   )
 }
 
-function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onImageClick }: {
+function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onImageClick, onForward }: {
   msg: Message; isOwn: boolean; showAvatar: boolean
   onReply: () => void; onEdit: (text: string) => void; onDelete: () => void
-  onImageClick: (url: string) => void
+  onImageClick: (url: string) => void; onForward: (msg: Message) => void
 }) {
   const isImage = msg.fileType === 'image'
   const isVideo = msg.fileType === 'video'
@@ -403,7 +477,7 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
   }
 
   return (
-    <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div id={`msg-${msg.id}`} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
       {!isOwn && (
         <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
           {msg.sender?.avatar && (msg.sender.avatar.startsWith('data:') || msg.sender.avatar.startsWith('http'))
@@ -438,6 +512,8 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
             <div className="relative z-50">
               <button onClick={() => { onReply(); setShowMenu(false) }}
                 className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↩️ Ответить</button>
+              <button onClick={() => { onForward(msg); setShowMenu(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↪️ Переслать</button>
               {isOwn && msg.text && (
                 <button onClick={() => { setEditing(true); setShowMenu(false) }}
                   className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">✏️ Изменить</button>
@@ -493,6 +569,55 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
             {format(new Date(msg.createdAt), 'HH:mm', { locale: ru })}
             {isOwn && <span>{msg.read ? '✓✓' : '✓'}</span>}
           </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ForwardModal({ msg, onClose, onForward }: {
+  msg: Message; onClose: () => void; onForward: (chatId: string) => void
+}) {
+  const { chats } = useChatStore()
+  const [search, setSearch] = useState('')
+  const [forwarding, setForwarding] = useState<string | null>(null)
+
+  const filtered = chats.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-sidebar rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="font-semibold text-sm">Переслать сообщение</p>
+          <button onClick={onClose} className="text-muted hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-4 py-2 border-b border-border">
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Поиск чата..."
+            className="w-full bg-chat border border-border rounded-xl px-4 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-primary" />
+        </div>
+        <div className="max-h-72 overflow-y-auto py-2">
+          {filtered.map(chat => (
+            <button key={chat.id} disabled={!!forwarding}
+              onClick={async () => {
+                setForwarding(chat.id)
+                await onForward(chat.id)
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-sidebar-hover transition disabled:opacity-50">
+              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+                {chat.avatar && (chat.avatar.startsWith('data:') || chat.avatar.startsWith('http'))
+                  ? <img src={chat.avatar} className="w-full h-full object-cover" alt="" />
+                  : chat.name[0]?.toUpperCase()
+                }
+              </div>
+              <p className="text-sm text-white truncate flex-1 text-left">{chat.name}</p>
+              {forwarding === chat.id && <span className="text-xs text-primary">✓</span>}
+            </button>
+          ))}
         </div>
       </div>
     </div>

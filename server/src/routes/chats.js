@@ -507,6 +507,84 @@ router.post('/:chatId/invite', auth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// Search messages in chat
+router.get('/:chatId/search', auth, async (req, res, next) => {
+  try {
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+    })
+    if (!member) return res.status(403).json({ message: 'Нет доступа' })
+
+    const q = (req.query.q || '').trim()
+    if (!q) return res.json([])
+
+    const messages = await prisma.message.findMany({
+      where: { chatId: req.params.chatId, text: { contains: q, mode: 'insensitive' } },
+      include: { sender: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    })
+    res.json(messages.map(formatMessage))
+  } catch (e) { next(e) }
+})
+
+// Get media files in chat
+router.get('/:chatId/media', auth, async (req, res, next) => {
+  try {
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+    })
+    if (!member) return res.status(403).json({ message: 'Нет доступа' })
+
+    const media = await prisma.message.findMany({
+      where: { chatId: req.params.chatId, fileType: { in: ['image', 'video'] } },
+      select: { id: true, fileUrl: true, fileType: true, fileName: true, createdAt: true, sender: { select: { displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    })
+    res.json(media)
+  } catch (e) { next(e) }
+})
+
+// Forward message to another chat
+router.post('/:chatId/messages/:messageId/forward', auth, async (req, res, next) => {
+  try {
+    const { targetChatId } = req.body
+    if (!targetChatId) return res.status(400).json({ message: 'Укажите targetChatId' })
+
+    // Проверяем доступ к исходному чату
+    const srcMember = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+    })
+    if (!srcMember) return res.status(403).json({ message: 'Нет доступа к исходному чату' })
+
+    // Проверяем доступ к целевому чату
+    const dstMember = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: targetChatId, userId: req.userId } }
+    })
+    if (!dstMember) return res.status(403).json({ message: 'Нет доступа к целевому чату' })
+
+    const original = await prisma.message.findUnique({ where: { id: req.params.messageId } })
+    if (!original) return res.status(404).json({ message: 'Сообщение не найдено' })
+
+    const forwarded = await prisma.message.create({
+      data: {
+        chatId: targetChatId,
+        senderId: req.userId,
+        text: original.text,
+        fileUrl: original.fileUrl,
+        fileType: original.fileType,
+        fileName: original.fileName,
+      },
+      include: { sender: true }
+    })
+
+    const formatted = formatMessage(forwarded)
+    req.app.get('io').to(`chat:${targetChatId}`).emit('message', formatted)
+    res.json(formatted)
+  } catch (e) { next(e) }
+})
+
 // Delete chat
 router.delete('/:chatId', auth, async (req, res, next) => {
   try {

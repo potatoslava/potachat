@@ -27,7 +27,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   const { user } = useAuthStore()
   const [info, setInfo] = useState<GroupInfo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'info' | 'members'>('info')
+  const [tab, setTab] = useState<'info' | 'members' | 'media'>('info')
 
   // Edit state
   const [editName, setEditName] = useState('')
@@ -39,6 +39,9 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   const [addUsername, setAddUsername] = useState('')
   const [addError, setAddError] = useState('')
   const [adding, setAdding] = useState(false)
+  const [media, setMedia] = useState<any[]>([])
+  const [mediaLoading, setMediaLoading] = useState(false)
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -151,6 +154,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-sidebar rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
@@ -178,6 +182,16 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
               <button onClick={() => setTab('members')}
                 className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${tab === 'members' ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
                 Участники ({info.members.length})
+              </button>
+              <button onClick={() => {
+                setTab('media')
+                if (media.length === 0 && !mediaLoading) {
+                  setMediaLoading(true)
+                  api.get(`/chats/${chat.id}/media`).then(({ data }) => setMedia(data)).catch(() => {}).finally(() => setMediaLoading(false))
+                }
+              }}
+                className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${tab === 'media' ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
+                Медиа
               </button>
             </div>
 
@@ -335,6 +349,24 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                   ))}
                 </div>
               )}
+
+              {tab === 'media' && (
+                <div className="p-4">
+                  {mediaLoading && <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}
+                  {!mediaLoading && media.length === 0 && <p className="text-center text-muted py-8">Нет медиафайлов</p>}
+                  <div className="grid grid-cols-3 gap-1">
+                    {media.map((m: any) => (
+                      <div key={m.id} className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-chat"
+                        onClick={() => m.fileType === 'image' && setLightbox(`/uploads/${m.fileUrl}`)}>
+                        {m.fileType === 'image'
+                          ? <img src={`/uploads/${m.fileUrl}`} className="w-full h-full object-cover" alt="" />
+                          : <div className="w-full h-full flex items-center justify-center text-2xl">🎬</div>
+                        }
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -342,5 +374,12 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
         )}
       </div>
     </div>
+    {lightbox && (
+      <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center" onClick={() => setLightbox(null)}>
+        <img src={lightbox} alt="" className="max-w-[90vw] max-h-[90vh] rounded-xl object-contain" />
+        <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center">✕</button>
+      </div>
+    )}
+  </>
   )
 }
