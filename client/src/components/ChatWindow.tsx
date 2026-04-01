@@ -54,6 +54,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     setShowSearch(false)
     setSearchQuery('')
     setSearchResults([])
+    setForwardMsg(null)
     api.get(`/chats/${activeChat.id}/messages`)
       .then(({ data }) => setMessages(activeChat.id, data))
       .catch(() => {})

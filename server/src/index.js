@@ -83,6 +83,11 @@ io.on('connection', async (socket) => {
   socket.on('typing:stop', ({ chatId }) => {
     socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, displayName: socket.displayName })
   })
+  socket.on('update:displayName', ({ displayName }) => {
+    if (displayName && typeof displayName === 'string') {
+      socket.displayName = displayName.slice(0, 64)
+    }
+  })
 
   socket.on('disconnect', async () => {
     const now = new Date()

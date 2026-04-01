@@ -131,6 +131,11 @@ function ProfileSection() {
       const { data } = await api.patch('/users/me', { displayName, bio })
       setAuth(data, token)
       api.get('/chats').then(({ data }) => setChats(data))
+      // Обновляем displayName в сокете для typing индикатора
+      if (data.displayName) {
+        const { socket } = await import('../lib/socket')
+        socket.emit('update:displayName', { displayName: data.displayName })
+      }
       setMsg('Сохранено')
       setTimeout(() => setMsg(''), 2000)
     } catch (e: any) {
@@ -160,7 +165,7 @@ function ProfileSection() {
             className="w-full bg-chat/50 border border-border rounded-xl px-4 py-2.5 text-sm text-muted cursor-not-allowed" />
         </div>
       </div>
-      {msg && <p className="text-xs text-primary text-center">{msg}</p>}
+      {msg && <p className={`text-xs text-center ${msg === 'Сохранено' ? 'text-primary' : 'text-red-400'}`}>{msg}</p>}
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
         {saving ? 'Сохранение...' : 'Сохранить'}
@@ -245,7 +250,7 @@ function AccountSection() {
         </button>
       </div>
 
-      {msg && <p className="text-xs text-primary text-center">{msg}</p>}
+      {msg && <p className={`text-xs text-center ${['Имя пользователя изменено', 'Пароль изменён'].includes(msg) ? 'text-primary' : 'text-red-400'}`}>{msg}</p>}
 
       <div className="bg-sidebar rounded-2xl overflow-hidden">
         <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sidebar-hover transition">
