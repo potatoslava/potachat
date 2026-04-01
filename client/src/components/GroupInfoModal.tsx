@@ -139,6 +139,17 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
     } catch {}
   }
 
+  const deleteGroup = async () => {
+    if (!confirm(`Удалить ${chat.type === 'channel' ? 'канал' : 'группу'} навсегда? Это действие необратимо.`)) return
+    try {
+      await api.delete(`/chats/${chat.id}`)
+      const s = useChatStore.getState()
+      s.setChats(s.chats.filter(c => c.id !== chat.id))
+      if (s.activeChat?.id === chat.id) s.setActiveChat(null)
+      onClose()
+    } catch {}
+  }
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-sidebar rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -246,11 +257,17 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                     </div>
                   )}
 
-                  {/* Leave */}
+                  {/* Leave / Delete */}
                   {!isOwner && (
                     <button onClick={leaveGroup}
                       className="w-full py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition">
                       Покинуть {chat.type === 'channel' ? 'канал' : 'группу'}
+                    </button>
+                  )}
+                  {isOwner && (
+                    <button onClick={deleteGroup}
+                      className="w-full py-2.5 rounded-xl bg-red-500/20 text-red-400 text-sm hover:bg-red-500/30 transition font-medium">
+                      🗑️ Удалить {chat.type === 'channel' ? 'канал' : 'группу'}
                     </button>
                   )}
                 </div>

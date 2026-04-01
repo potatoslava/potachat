@@ -520,6 +520,8 @@ router.delete('/:chatId', auth, async (req, res, next) => {
       return res.status(403).json({ message: 'Только владелец может удалить этот чат' })
     }
     await prisma.chat.delete({ where: { id: req.params.chatId } })
+    // Уведомляем всех участников что чат удалён
+    req.app.get('io').to(`chat:${req.params.chatId}`).emit('chat:deleted', { chatId: req.params.chatId })
     res.json({ success: true })
   } catch (e) { next(e) }
 })

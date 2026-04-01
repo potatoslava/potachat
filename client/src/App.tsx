@@ -64,6 +64,11 @@ export default function App() {
       state.setChats(state.chats.filter(c => c.id !== chatId))
       if (state.activeChat?.id === chatId) state.setActiveChat(null)
     })
+    socket.on('chat:deleted', ({ chatId }: { chatId: string }) => {
+      const state = useChatStore.getState()
+      state.setChats(state.chats.filter(c => c.id !== chatId))
+      if (state.activeChat?.id === chatId) state.setActiveChat(null)
+    })
     socket.on('chat:joined', (chat: any) => {
       const state = useChatStore.getState()
       if (!state.chats.find(c => c.id === chat.id)) {
@@ -102,6 +107,7 @@ export default function App() {
       socket.off('user:status')
       socket.off('user:avatar')
       socket.off('chat:left')
+      socket.off('chat:deleted')
       socket.off('chat:joined')
       socket.off('message')
       socket.disconnect()
