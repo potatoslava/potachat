@@ -48,11 +48,19 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: { ...state.messages, [chatId]: messages },
     })),
   updateLastMessage: (chatId, message) =>
-    set((state) => ({
-      chats: state.chats
-        .map((c) => c.id === chatId ? { ...c, lastMessage: message } : c)
-        .sort((a, b) => new Date(b.lastMessage?.createdAt || b.createdAt).getTime() - new Date(a.lastMessage?.createdAt || a.createdAt).getTime()),
-    })),
+    set((state) => {
+      const pinnedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] } })()
+      return {
+        chats: state.chats
+          .map((c) => c.id === chatId ? { ...c, lastMessage: message } : c)
+          .sort((a, b) => {
+            const aPin = pinnedIds.includes(a.id) ? 1 : 0
+            const bPin = pinnedIds.includes(b.id) ? 1 : 0
+            if (aPin !== bPin) return bPin - aPin
+            return new Date(b.lastMessage?.createdAt || b.createdAt).getTime() - new Date(a.lastMessage?.createdAt || a.createdAt).getTime()
+          }),
+      }
+    }),
   editMessage: (chatId, message) =>
     set((state) => ({
       messages: {
@@ -98,11 +106,19 @@ export const useChatStore = create<ChatState>((set) => ({
       ),
     })),
   incrementUnread: (chatId, message) =>
-    set((state) => ({
-      chats: state.chats
-        .map((c) => c.id === chatId ? { ...c, unreadCount: (c.unreadCount || 0) + 1, lastMessage: message } : c)
-        .sort((a, b) => new Date(b.lastMessage?.createdAt || b.createdAt).getTime() - new Date(a.lastMessage?.createdAt || a.createdAt).getTime())
-    })),
+    set((state) => {
+      const pinnedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] } })()
+      return {
+        chats: state.chats
+          .map((c) => c.id === chatId ? { ...c, unreadCount: (c.unreadCount || 0) + 1, lastMessage: message } : c)
+          .sort((a, b) => {
+            const aPin = pinnedIds.includes(a.id) ? 1 : 0
+            const bPin = pinnedIds.includes(b.id) ? 1 : 0
+            if (aPin !== bPin) return bPin - aPin
+            return new Date(b.lastMessage?.createdAt || b.createdAt).getTime() - new Date(a.lastMessage?.createdAt || a.createdAt).getTime()
+          })
+      }
+    }),
   clearUnread: (chatId) =>
     set((state) => ({
       chats: state.chats.map((c) => c.id === chatId ? { ...c, unreadCount: 0 } : c)

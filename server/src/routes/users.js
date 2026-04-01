@@ -124,6 +124,15 @@ router.delete('/block/:userId', auth, async (req, res, next) => {
 // Delete own account
 router.delete('/me', auth, async (req, res, next) => {
   try {
+    // Кикаем сокет-сессию до удаления
+    const io = req.app.get('io')
+    const room = io.sockets.adapter.rooms.get(`user:${req.userId}`)
+    if (room) {
+      for (const socketId of room) {
+        const s = io.sockets.sockets.get(socketId)
+        if (s) s.disconnect(true)
+      }
+    }
     await prisma.user.delete({ where: { id: req.userId } })
     res.json({ success: true })
   } catch (e) { next(e) }

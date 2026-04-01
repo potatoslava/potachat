@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 
 import { useChatStore } from '../store/chatStore'
 
@@ -72,9 +72,11 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
   const isSearching = searchFocused && search.trim().length > 0
 
   // Закреплённые чаты наверху — pinVersion форсирует перерендер после изменения
+  const pinnedIds: string[] = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const pinnedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] } })()
-  void pinVersion // используем для зависимости
+  }, [pinVersion])
+
   const filtered = chats
     .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
