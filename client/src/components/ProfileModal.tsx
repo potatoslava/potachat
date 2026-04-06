@@ -16,7 +16,22 @@ export default function ProfileModal({ onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const save = async () => {
-    if (!displayName.trim()) return
+    if (!displayName.trim()) {
+      setMsg('Имя не может быть пустым')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    if (displayName.trim().length > 64) {
+      setMsg('Имя слишком длинное (максимум 64 символа)')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    if (bio.length > 512) {
+      setMsg('О себе слишком длинное (максимум 512 символов)')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    
     setSaving(true)
     try {
       const { data } = await api.patch('/users/me', { displayName, bio })
@@ -97,6 +112,7 @@ export default function ProfileModal({ onClose }: Props) {
             <input
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
+              maxLength={64}
               className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary"
             />
           </div>
@@ -106,6 +122,7 @@ export default function ProfileModal({ onClose }: Props) {
               value={bio}
               onChange={e => setBio(e.target.value)}
               rows={3}
+              maxLength={512}
               placeholder="Расскажите о себе..."
               className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary resize-none"
             />

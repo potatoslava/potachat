@@ -64,7 +64,22 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
 
   const saveInfo = async () => {
     if (!info) return
-    if (!editName.trim()) return
+    if (!editName.trim()) {
+      setSaveMsg('Название не может быть пустым')
+      setTimeout(() => setSaveMsg(''), 3000)
+      return
+    }
+    if (editName.trim().length > 128) {
+      setSaveMsg('Название слишком длинное (максимум 128 символов)')
+      setTimeout(() => setSaveMsg(''), 3000)
+      return
+    }
+    if (editDesc.length > 1024) {
+      setSaveMsg('Описание слишком длинное (максимум 1024 символа)')
+      setTimeout(() => setSaveMsg(''), 3000)
+      return
+    }
+    
     setSaving(true)
     try {
       const { data } = await api.patch(`/chats/${chat.id}/info`, { name: editName, description: editDesc })
@@ -143,11 +158,25 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   }
 
   const addMember = async () => {
-    if (!addUsername.trim() || adding) return
+    const trimmed = addUsername.trim()
+    if (!trimmed || adding) return
+    
+    // Валидация username
+    if (trimmed.length < 3 || trimmed.length > 32) {
+      setAddError('Username должен быть от 3 до 32 символов')
+      setTimeout(() => setAddError(''), 3000)
+      return
+    }
+    if (!/^[a-zA-Z0-9_.]+$/.test(trimmed)) {
+      setAddError('Username может содержать только буквы, цифры, точку и подчёркивание')
+      setTimeout(() => setAddError(''), 3000)
+      return
+    }
+    
     setAdding(true)
     setAddError('')
     try {
-      await api.post(`/chats/${chat.id}/members`, { username: addUsername.trim() })
+      await api.post(`/chats/${chat.id}/members`, { username: trimmed })
       setAddUsername('')
       setAddError('✅ Приглашение отправлено')
       setTimeout(() => setAddError(''), 2000)
@@ -261,12 +290,14 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                       <label className="text-xs text-muted mb-1 block">Название</label>
                       <input value={editName} onChange={e => setEditName(e.target.value)}
                         disabled={!isAdminOrOwner}
+                        maxLength={128}
                         className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary disabled:opacity-60 disabled:cursor-not-allowed" />
                     </div>
                     <div>
                       <label className="text-xs text-muted mb-1 block">Описание</label>
                       <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)}
                         disabled={!isAdminOrOwner}
+                        maxLength={1024}
                         rows={3} placeholder="Описание группы..."
                         className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary resize-none disabled:opacity-60 disabled:cursor-not-allowed" />
                     </div>
@@ -329,8 +360,9 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                   {isAdminOrOwner && (
                     <div className="space-y-2">
                       <div className="flex gap-2">
-                        <input value={addUsername} onChange={e => setAddUsername(e.target.value)}
+                        <input value={addUsername} onChange={e => setAddUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, ''))}
                           onKeyDown={e => e.key === 'Enter' && addMember()}
+                          maxLength={32}
                           placeholder="@username"
                           className="flex-1 bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary" />
                         <button onClick={addMember} disabled={adding || !addUsername.trim()}
