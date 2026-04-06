@@ -391,6 +391,7 @@ router.get('/:chatId/info', auth, async (req, res, next) => {
       avatar: chat.avatar,
       description: chat.description,
       inviteCode: member.role === 'owner' || member.role === 'admin' ? chat.inviteCode : undefined,
+      pinnedMessageId: chat.pinnedMessageId,
       myRole: member.role,
       members: chat.members.map(m => ({
         id: m.user.id,
@@ -645,6 +646,41 @@ router.post('/:chatId/messages/:messageId/forward', auth, async (req, res, next)
     const formatted = formatMessage(forwarded)
     req.app.get('io').to(`chat:${targetChatId}`).emit('message', formatted)
     res.json(formatted)
+  } catch (e) { next(e) }
+})
+
+// Pin/unpin message in chat
+router.post('/:chatId/messages/:messageId/pin', auth, async (req, res, next) => {
+  try {
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+    })
+    if (!member || !['owner', 'admin'].includes(member.role)) {
+      return res.status(403).json({ message: 'Только админы могут закреплять сообщения' })
+    }
+
+    const message = await prisma.message.findUnique({ where: { id: req.params.messageId } })
+    if (!message || message.chatId !== req.params.chatId) {
+      return res.status(404).json({ message: 'Сообщение не найдено' })
+    }
+
+    const chat = await prisma.chat.findUnique({ where: { id: req.params.chatId } })
+    if (!chat) return res.status(404).json({ message: 'Чат не найден' })
+
+    // Toggle pin
+    const newPinnedId = chat.pinnedMessageId === req.params.messageId ? null : req.params.messageId
+
+    await prisma.chat.update({
+      where: { id: req.params.chatId },
+      data: { pinnedMessageId: newPinnedId }
+    })
+
+    req.app.get('io').to(`chat:${req.params.chatId}`).emit('chat:pinned_message', {
+      chatId: req.params.chatId,
+      pinnedMessageId: newPinnedId
+    })
+
+    res.json({ pinnedMessageId: newPinnedId })
   } catch (e) { next(e) }
 })
 

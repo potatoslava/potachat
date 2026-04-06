@@ -45,6 +45,7 @@ model Chat {
   avatar      String?
   description String?
   inviteCode  String?  @unique
+  pinnedMessageId String?
   createdAt   DateTime @default(now())
 
   members  ChatMember[]

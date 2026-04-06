@@ -27,6 +27,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [searchResults, setSearchResults] = useState<Message[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [forwardMsg, setForwardMsg] = useState<Message | null>(null)
+  const [pinnedMessageId, setPinnedMessageId] = useState<string | null>(null)
+  const [pinnedMessage, setPinnedMessage] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -55,11 +57,23 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     setSearchQuery('')
     setSearchResults([])
     setForwardMsg(null)
+    setPinnedMessageId(null)
+    setPinnedMessage(null)
     // Сбрасываем счётчик непрочитанных при открытии чата
     useChatStore.getState().clearUnread(activeChat.id)
-    api.get(`/chats/${activeChat.id}/messages`)
-      .then(({ data }) => setMessages(activeChat.id, data))
-      .catch(() => {})
+    
+    // Загружаем сообщения и инфо о чате
+    Promise.all([
+      api.get(`/chats/${activeChat.id}/messages`),
+      api.get(`/chats/${activeChat.id}/info`)
+    ]).then(([messagesRes, infoRes]) => {
+      setMessages(activeChat.id, messagesRes.data)
+      if (infoRes.data.pinnedMessageId) {
+        setPinnedMessageId(infoRes.data.pinnedMessageId)
+        const pinned = messagesRes.data.find((m: Message) => m.id === infoRes.data.pinnedMessageId)
+        if (pinned) setPinnedMessage(pinned)
+      }
+    }).catch(() => {})
     socket.emit('join-chat', activeChat.id)
     return () => {
       socket.emit('leave-chat', activeChat.id)
@@ -137,6 +151,18 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       ))
     }
 
+    const onPinnedMessage = ({ chatId, pinnedMessageId }: { chatId: string; pinnedMessageId: string | null }) => {
+      if (chatId === useChatStore.getState().activeChat?.id) {
+        setPinnedMessageId(pinnedMessageId)
+        if (pinnedMessageId) {
+          const msg = chatMessages.find(m => m.id === pinnedMessageId)
+          if (msg) setPinnedMessage(msg)
+        } else {
+          setPinnedMessage(null)
+        }
+      }
+    }
+
     socket.on('message', onMessage)
     socket.on('message:edit', onEdit)
     socket.on('message:delete', onDelete)
@@ -145,6 +171,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     socket.on('chat:member_remove', onMemberRemove)
     socket.on('chat:role_change', onRoleChange)
     socket.on('messages:read', onMessagesRead)
+    socket.on('chat:pinned_message', onPinnedMessage)
     const onTypingStart = ({ chatId, displayName }: { chatId: string; displayName: string }) => {
       setTyping(chatId, displayName, true)
     }
@@ -163,6 +190,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       socket.off('chat:member_remove', onMemberRemove)
       socket.off('chat:role_change', onRoleChange)
       socket.off('messages:read', onMessagesRead)
+      socket.off('chat:pinned_message', onPinnedMessage)
       socket.off('typing:start', onTypingStart)
       socket.off('typing:stop', onTypingStop)
     }
@@ -344,6 +372,37 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         </button>
       </div>
 
+      {/* Pinned message */}
+      {pinnedMessage && (
+        <div className="px-4 py-2 bg-primary/10 border-b border-border flex items-center gap-2 flex-shrink-0">
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => {
+            const el = document.getElementById(`msg-${pinnedMessage.id}`)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }}>
+            <p className="text-xs text-primary font-medium flex items-center gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/>
+              </svg>
+              Закреплённое сообщение
+            </p>
+            <p className="text-xs text-white truncate">{pinnedMessage.text || '📎 Файл'}</p>
+          </div>
+          {(activeChat?.myRole === 'owner' || activeChat?.myRole === 'admin') && (
+            <button onClick={async () => {
+              try {
+                await api.post(`/chats/${activeChat.id}/messages/${pinnedMessage.id}/pin`)
+                setPinnedMessageId(null)
+                setPinnedMessage(null)
+              } catch {}
+            }} className="text-muted hover:text-white flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Search panel */}
       {showSearch && (
         <div className="px-4 py-2 bg-header border-b border-border flex-shrink-0">
@@ -520,16 +579,27 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
   onReply: () => void; onEdit: (text: string) => void; onDelete: () => void
   onImageClick: (url: string) => void; onForward: (msg: Message) => void
 }) {
+  const { activeChat } = useChatStore()
   const isImage = msg.fileType === 'image'
   const isVideo = msg.fileType === 'video'
   const [showActions, setShowActions] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.text || '')
+  
+  const isAdminOrOwner = activeChat?.myRole === 'owner' || activeChat?.myRole === 'admin'
 
   const submitEdit = () => {
     if (editText.trim() && editText !== msg.text) onEdit(editText.trim())
     setEditing(false)
+  }
+
+  const pinMessage = async () => {
+    if (!activeChat) return
+    try {
+      await api.post(`/chats/${activeChat.id}/messages/${msg.id}/pin`)
+      setShowMenu(false)
+    } catch {}
   }
 
   return (
@@ -570,6 +640,10 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
                 className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↩️ Ответить</button>
               <button onClick={() => { onForward(msg); setShowMenu(false) }}
                 className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↪️ Переслать</button>
+              {isAdminOrOwner && activeChat?.type !== 'private' && (
+                <button onClick={pinMessage}
+                  className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">📌 Закрепить</button>
+              )}
               {isOwn && msg.text && (
                 <button onClick={() => { setEditing(true); setShowMenu(false) }}
                   className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">✏️ Изменить</button>
