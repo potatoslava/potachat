@@ -22,13 +22,19 @@ export default function SearchPanel({ query, onClose }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!query.trim()) { setResults({ users: [], chats: [], channels: [] }); return }
+    if (!query.trim() || query.trim().length < 2) { 
+      setResults({ users: [], chats: [], channels: [] })
+      return 
+    }
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
       setLoading(true)
       try {
         const { data } = await api.get(`/search?q=${encodeURIComponent(query)}`)
         setResults(data)
+      } catch (e: any) {
+        console.error('Ошибка поиска:', e.response?.data?.message || 'Ошибка')
+        setResults({ users: [], chats: [], channels: [] })
       } finally {
         setLoading(false)
       }

@@ -16,9 +16,21 @@ export default function VerifyEmailPage() {
   const sendCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    // Валидация email
+    if (!email.trim()) {
+      setError('Введите email')
+      return
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setError('Неверный формат email')
+      return
+    }
+    
     setSending(true)
     try {
-      await api.post('/auth/send-verification', { email })
+      await api.post('/auth/send-verification', { email: email.trim() })
       setStep('code')
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка')
@@ -28,6 +40,13 @@ export default function VerifyEmailPage() {
   const verify = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    // Валидация кода
+    if (code.length !== 6) {
+      setError('Код должен содержать 6 цифр')
+      return
+    }
+    
     try {
       await api.post('/auth/verify-email', { userId: user!.id, code })
       const { data } = await api.get('/users/me')
