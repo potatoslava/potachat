@@ -20,7 +20,14 @@ async function getOrCreateBot() {
     if (!bot) {
       const password = await bcrypt.hash('bot_secret_password_123', 10)
       bot = await prisma.user.create({
-        data: { username: BOT_USERNAME, displayName: BOT_DISPLAY, password, online: true, emailVerified: true }
+        data: { 
+          username: BOT_USERNAME, 
+          displayName: BOT_DISPLAY, 
+          password, 
+          email: 'bot@cocodack.local',
+          online: true, 
+          emailVerified: true 
+        }
       })
       console.log('CocoDackBot created')
     }

@@ -98,7 +98,8 @@ export default function App() {
     }
     const onMessage = (msg: any) => {
       const state = useChatStore.getState()
-      if (msg.senderId === useAuthStore.getState().user?.id) return
+      const currentUser = useAuthStore.getState().user
+      if (msg.senderId === currentUser?.id) return
 
       const chatExists = state.chats.find(c => c.id === msg.chatId)
       if (!chatExists) {
