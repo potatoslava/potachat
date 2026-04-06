@@ -126,7 +126,22 @@ function ProfileSection() {
   const [msg, setMsg] = useState('')
 
   const save = async () => {
-    if (!displayName.trim()) return
+    if (!displayName.trim()) {
+      setMsg('Имя не может быть пустым')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    if (displayName.trim().length > 64) {
+      setMsg('Имя слишком длинное (максимум 64 символа)')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    if (bio.length > 512) {
+      setMsg('О себе слишком длинное (максимум 512 символов)')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    
     setSaving(true)
     try {
       const { data } = await api.patch('/users/me', { displayName, bio })
@@ -152,11 +167,13 @@ function ProfileSection() {
         <div>
           <label className="text-xs text-muted mb-1 block">Имя</label>
           <input value={displayName} onChange={e => setDisplayName(e.target.value)}
+            maxLength={64}
             className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary" />
         </div>
         <div>
           <label className="text-xs text-muted mb-1 block">О себе</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3}
+            maxLength={512}
             placeholder="Расскажите о себе..."
             className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary resize-none" />
         </div>
@@ -189,6 +206,12 @@ function AccountSection() {
     if (!newUsername.trim() || newUsername === user?.username) return
     if (newUsername.length < 3 || newUsername.length > 32) {
       setMsg('Username должен быть от 3 до 32 символов')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    if (!/^[a-zA-Z0-9_.]+$/.test(newUsername)) {
+      setMsg('Username может содержать только буквы, цифры, точку и подчёркивание')
+      setTimeout(() => setMsg(''), 3000)
       return
     }
     setSaving(true)
@@ -208,6 +231,11 @@ function AccountSection() {
 
   const savePassword = async () => {
     if (!oldPassword || !newPassword) return
+    if (newPassword.length < 6) {
+      setMsg('Новый пароль должен быть не менее 6 символов')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
     setSaving(true)
     try {
       await api.patch('/users/me/password', { oldPassword, newPassword })
@@ -234,7 +262,8 @@ function AccountSection() {
     <div className="p-4 space-y-4">
       <div className="bg-sidebar rounded-2xl p-4 space-y-3">
         <p className="text-xs text-muted font-medium uppercase tracking-wider">Имя пользователя</p>
-        <input value={newUsername} onChange={e => setNewUsername(e.target.value)}
+        <input value={newUsername} onChange={e => setNewUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, ''))}
+          maxLength={32}
           className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary" />
         <button onClick={saveUsername} disabled={saving || newUsername === user?.username}
           className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">

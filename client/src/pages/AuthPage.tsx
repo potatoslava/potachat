@@ -23,6 +23,25 @@ export default function AuthPage() {
   const handle = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    // Валидация на клиенте
+    if (!isLogin) {
+      if (form.displayName.trim().length === 0 || form.displayName.trim().length > 64) {
+        setError('Отображаемое имя должно быть от 1 до 64 символов')
+        return
+      }
+    }
+    
+    if (form.username.length < 3 || form.username.length > 32) {
+      setError('Username должен быть от 3 до 32 символов')
+      return
+    }
+    
+    if (form.password.length < 6) {
+      setError('Пароль должен быть не менее 6 символов')
+      return
+    }
+    
     try {
       const url = isLogin ? '/auth/login' : '/auth/register'
       const { data } = await api.post(url, form)
