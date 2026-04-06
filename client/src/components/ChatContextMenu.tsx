@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import api from '../lib/api'
 import { useChatStore } from '../store/chatStore'
 import { useAuthStore } from '../store/authStore'
@@ -20,6 +21,8 @@ function setPinnedIds(ids: string[]) {
 export default function ChatContextMenu({ chat, onClose, position }: Props) {
   const { chats, setChats, setActiveChat, activeChat } = useChatStore()
   const { user } = useAuthStore()
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const isPinned = getPinnedIds().includes(chat.id)
   const isOwner = chat.myRole === 'owner'
   const canDelete = chat.type === 'private' || isOwner
@@ -53,7 +56,6 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
   }
 
   const blockUser = async () => {
-    if (!confirm('Заблокировать этого пользователя? Вы не сможете получать от него сообщения.')) return
     try {
       const otherId = chat.members?.find(m => m.id !== user?.id)?.id
       if (otherId) {
@@ -64,6 +66,50 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
       }
     } catch {}
     onClose()
+  }
+
+  if (showBlockConfirm) {
+    return (
+      <>
+        <div className="fixed inset-0 z-40" onClick={onClose} />
+        <div className="fixed z-50 bg-sidebar rounded-xl shadow-2xl border border-border p-4 w-64"
+          style={{ top: position.y, left: position.x }}>
+          <p className="text-sm text-white mb-3">Заблокировать этого пользователя? Вы не сможете получать от него сообщения.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setShowBlockConfirm(false)}
+              className="flex-1 py-1.5 rounded-lg bg-chat text-muted text-xs hover:text-white transition">
+              Отмена
+            </button>
+            <button onClick={blockUser}
+              className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30 transition">
+              Заблокировать
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (showDeleteConfirm) {
+    return (
+      <>
+        <div className="fixed inset-0 z-40" onClick={onClose} />
+        <div className="fixed z-50 bg-sidebar rounded-xl shadow-2xl border border-border p-4 w-64"
+          style={{ top: position.y, left: position.x }}>
+          <p className="text-sm text-white mb-3">Удалить этот чат? Это действие нельзя отменить.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1 py-1.5 rounded-lg bg-chat text-muted text-xs hover:text-white transition">
+              Отмена
+            </button>
+            <button onClick={deleteChat}
+              className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30 transition">
+              Удалить
+            </button>
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (
@@ -92,7 +138,7 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
           {isMuted ? 'Включить уведомления' : 'Выключить уведомления'}
         </button>
         {chat.type === 'private' && (
-          <button onClick={blockUser}
+          <button onClick={() => setShowBlockConfirm(true)}
             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-chat transition flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -101,7 +147,7 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
           </button>
         )}
         {canDelete && (
-          <button onClick={deleteChat}
+          <button onClick={() => setShowDeleteConfirm(true)}
             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-chat transition flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
