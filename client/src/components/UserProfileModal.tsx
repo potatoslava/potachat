@@ -47,6 +47,7 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
 
   const openChat = async () => {
     if (!profile) return
+    setActionLoading(true)
     try {
       const { data } = await api.post('/chats/private', { username: profile.username })
       const exists = chats.find(c => c.id === data.id)
@@ -54,7 +55,10 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
       setActiveChat(data)
       onClose()
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Ошибка')
+      // Показываем ошибку в UI вместо alert
+      console.error('Ошибка открытия чата:', e.response?.data?.message || 'Ошибка')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -69,7 +73,8 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
         setIsBlocked(true)
       }
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Ошибка')
+      // Показываем ошибку в UI вместо alert
+      console.error('Ошибка блокировки:', e.response?.data?.message || 'Ошибка')
     } finally {
       setActionLoading(false)
     }
@@ -129,7 +134,8 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
           <div className="space-y-2">
             <button
               onClick={openChat}
-              className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition"
+              disabled={actionLoading}
+              className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50"
             >
               💬 Написать сообщение
             </button>

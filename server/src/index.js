@@ -17,10 +17,18 @@ const { getOrCreateBot } = require('./bot')
 const prisma = new PrismaClient()
 const app = express()
 const server = http.createServer(app)
-const io = new Server(server, { cors: { origin: '*' } })
+const io = new Server(server, { 
+  cors: { 
+    origin: process.env.CORS_ORIGIN || '*',
+    credentials: true 
+  } 
+})
 const JWT_SECRET = process.env.JWT_SECRET || 'CocoDack_secret_key'
 
-app.use(cors())
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true
+}))
 app.use(express.json({ limit: '5mb' }))
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 

@@ -1,7 +1,8 @@
 import { QRCodeSVG } from 'qrcode.react'
 
 export default function QRModal({ username, onClose }: { username: string; onClose: () => void }) {
-  const url = `${window.location.origin}/u/${username}`
+  // Используем просто username вместо несуществующего роута /u/
+  const url = `@${username}`
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>

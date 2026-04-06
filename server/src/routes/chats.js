@@ -446,8 +446,12 @@ router.post('/:chatId/members', auth, async (req, res, next) => {
 
     const { username } = req.body
     if (!username?.trim()) return res.status(400).json({ message: 'Укажите username' })
+    // Валидация формата username
+    if (!/^[a-zA-Z0-9_.]{3,32}$/.test(username.trim())) {
+      return res.status(400).json({ message: 'Неверный формат username' })
+    }
 
-    const target = await prisma.user.findUnique({ where: { username } })
+    const target = await prisma.user.findUnique({ where: { username: username.trim() } })
     if (!target) return res.status(404).json({ message: 'Пользователь не найден' })
 
     const existing = await prisma.chatMember.findUnique({
@@ -580,6 +584,7 @@ router.get('/:chatId/search', auth, async (req, res, next) => {
 
     const q = (req.query.q || '').trim()
     if (!q) return res.json([])
+    if (q.length < 2) return res.status(400).json({ message: 'Запрос слишком короткий (минимум 2 символа)' })
     if (q.length > 200) return res.status(400).json({ message: 'Запрос слишком длинный' })
 
     const messages = await prisma.message.findMany({

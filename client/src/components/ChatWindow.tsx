@@ -206,7 +206,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const handleSearchChange = (val: string) => {
     setSearchQuery(val)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
-    if (!val.trim()) { setSearchResults([]); return }
+    if (!val.trim() || val.trim().length < 2) { setSearchResults([]); return }
     const chatId = activeChat?.id
     if (!chatId) return
     searchTimerRef.current = setTimeout(async () => {
@@ -216,6 +216,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       try {
         const { data } = await api.get(`/chats/${chatId}/search?q=${encodeURIComponent(val)}`)
         setSearchResults(data)
+      } catch (e: any) {
+        console.error('Ошибка поиска:', e.response?.data?.message || 'Ошибка')
+        setSearchResults([])
       } finally { setSearchLoading(false) }
     }, 300)
   }
