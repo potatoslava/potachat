@@ -58,6 +58,9 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
 
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupResult, setCleanupResult] = useState('')
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
 
   useEffect(() => { loadUsers() }, [])
 
@@ -141,8 +144,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
     } catch (e: any) { setResetMsg(e.response?.data?.message || 'Ошибка') }
   }
 
-  const deleteUser = async (id: string, name: string) => {
-    if (!confirm(`Удалить аккаунт "${name}"? Это действие необратимо.`)) return
+  const deleteUser = async (id: string) => {
     if (actionLoading) return
     setActionLoading(`delete-${id}`)
     try {
@@ -202,7 +204,6 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
   }
 
   const cleanupOrphaned = async () => {
-    if (!confirm('Очистить базу данных от потерянных записей (удалённые пользователи)? Это безопасная операция.')) return
     setCleanupLoading(true)
     setCleanupResult('')
     try {
@@ -282,7 +283,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                   {cleanupResult}
                 </p>
               )}
-              <button onClick={cleanupOrphaned} disabled={cleanupLoading}
+              <button onClick={() => setCleanupConfirm(true)} disabled={cleanupLoading}
                 className="w-full py-2 rounded-xl bg-yellow-500/20 text-yellow-400 text-sm font-medium hover:bg-yellow-500/30 transition disabled:opacity-50">
                 {cleanupLoading ? 'Очистка...' : '🧹 Очистить потерянные записи'}
               </button>
@@ -345,7 +346,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                     className="px-3 py-1.5 rounded-lg text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition">
                     🔑 Сбросить пароль
                   </button>
-                  <button onClick={() => deleteUser(u.id, u.displayName)} disabled={actionLoading === `delete-${u.id}`}
+                  <button onClick={() => setShowDeleteConfirm({ id: u.id, name: u.displayName })} disabled={actionLoading === `delete-${u.id}`}
                     className="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition disabled:opacity-50">
                     🗑️ Удалить
                   </button>
@@ -471,6 +472,47 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
             <button onClick={resetPassword} disabled={!newPassword.trim() || newPassword.length < 6}
               className="flex-1 py-2 rounded-xl bg-yellow-500 text-white text-sm font-medium hover:bg-yellow-600 transition disabled:opacity-50">
               Сохранить
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Модалка подтверждения удаления пользователя */}
+    {showDeleteConfirm && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowDeleteConfirm(null)}>
+        <div className="bg-sidebar rounded-2xl p-6 w-80 shadow-2xl border border-border" onClick={e => e.stopPropagation()}>
+          <p className="font-semibold mb-2">Удалить аккаунт?</p>
+          <p className="text-sm text-white mb-1">{showDeleteConfirm.name}</p>
+          <p className="text-xs text-muted mb-4">Это действие необратимо.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setShowDeleteConfirm(null)}
+              className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
+              Отмена
+            </button>
+            <button onClick={() => { const id = showDeleteConfirm.id; setShowDeleteConfirm(null); deleteUser(id) }}
+              className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition">
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Модалка подтверждения очистки БД */}
+    {showCleanupConfirm && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCleanupConfirm(false)}>
+        <div className="bg-sidebar rounded-2xl p-6 w-80 shadow-2xl border border-border" onClick={e => e.stopPropagation()}>
+          <p className="font-semibold mb-2">Очистить базу данных?</p>
+          <p className="text-xs text-muted mb-4">Удалить записи, связанные с удалёнными пользователями. Это безопасная операция.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setShowCleanupConfirm(false)}
+              className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
+              Отмена
+            </button>
+            <button onClick={() => { setShowCleanupConfirm(false); cleanupOrphaned() }}
+              className="flex-1 py-2 rounded-xl bg-yellow-500 text-white text-sm font-medium hover:bg-yellow-600 transition">
+              Очистить
             </button>
           </div>
         </div>

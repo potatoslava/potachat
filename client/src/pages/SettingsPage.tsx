@@ -247,7 +247,6 @@ function AccountSection() {
   }
 
   const deleteAccount = async () => {
-    if (!confirm('Удалить аккаунт навсегда? Все данные будут потеряны. Это действие необратимо.')) return
     setDeleting(true)
     try {
       await api.delete('/users/me')
@@ -257,6 +256,8 @@ function AccountSection() {
       setDeleting(false)
     }
   }
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   return (
     <div className="p-4 space-y-4">
@@ -295,12 +296,31 @@ function AccountSection() {
       </div>
 
       <div className="bg-sidebar rounded-2xl overflow-hidden">
-        <button onClick={deleteAccount} disabled={deleting}
+        <button onClick={() => setShowDeleteConfirm(true)} disabled={deleting}
           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sidebar-hover transition disabled:opacity-50">
           <span className="text-lg">🗑️</span>
           <span className="text-sm text-red-500">{deleting ? 'Удаление...' : 'Удалить аккаунт'}</span>
         </button>
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-sidebar rounded-2xl p-6 w-80 shadow-2xl border border-border" onClick={e => e.stopPropagation()}>
+            <p className="font-semibold mb-2">Удалить аккаунт?</p>
+            <p className="text-xs text-muted mb-4">Все данные будут потеряны. Это действие необратимо.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
+                Отмена
+              </button>
+              <button onClick={() => { setShowDeleteConfirm(false); deleteAccount() }}
+                className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition">
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
