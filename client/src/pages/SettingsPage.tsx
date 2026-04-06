@@ -51,14 +51,21 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
+    // Проверка размера на клиенте
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Файл слишком большой (максимум 5MB)')
+      return
+    }
+    
     const form = new FormData()
     form.append('avatar', file)
     try {
       const { data } = await api.post('/users/me/avatar', form)
       setAuth(data, token)
       api.get('/chats').then(({ data }) => setChats(data))
-    } catch {
-      // silent fail — аватар не обновится, но приложение не упадёт
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Ошибка загрузки')
     }
   }
 
