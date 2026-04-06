@@ -18,7 +18,9 @@ async function getOrCreateBot() {
   try {
     let bot = await prisma.user.findUnique({ where: { username: BOT_USERNAME } })
     if (!bot) {
-      const password = await bcrypt.hash('bot_secret_password_123', 10)
+      // Используем более безопасный пароль из переменной окружения или генерируем случайный
+      const botPassword = process.env.BOT_PASSWORD || require('crypto').randomBytes(32).toString('hex')
+      const password = await bcrypt.hash(botPassword, 10)
       bot = await prisma.user.create({
         data: { 
           username: BOT_USERNAME, 
