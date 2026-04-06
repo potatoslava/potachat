@@ -53,9 +53,15 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
   }
 
   const blockUser = async () => {
+    if (!confirm('Заблокировать этого пользователя? Вы не сможете получать от него сообщения.')) return
     try {
       const otherId = chat.members?.find(m => m.id !== user?.id)?.id
-      if (otherId) await api.post(`/users/block/${otherId}`)
+      if (otherId) {
+        await api.post(`/users/block/${otherId}`)
+        // Удаляем чат из списка после блокировки
+        setChats(chats.filter(c => c.id !== chat.id))
+        if (activeChat?.id === chat.id) setActiveChat(null)
+      }
     } catch {}
     onClose()
   }

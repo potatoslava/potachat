@@ -10,6 +10,10 @@ export default function SupportModal({ onClose }: { onClose: () => void }) {
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!message.trim()) return
+    if (message.length > 2048) {
+      setError('Сообщение слишком длинное (максимум 2048 символов)')
+      return
+    }
     setSending(true)
     try {
       await api.post('/users/support', { message })
@@ -34,8 +38,14 @@ export default function SupportModal({ onClose }: { onClose: () => void }) {
         ) : (
           <form onSubmit={send} className="space-y-3">
             <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4}
+              maxLength={2048}
               placeholder="Опиши свою проблему..."
               className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none" />
+            {message.length > 1800 && (
+              <p className={`text-xs text-right ${message.length > 2048 ? 'text-red-400' : 'text-muted'}`}>
+                {message.length}/2048
+              </p>
+            )}
             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
             <div className="flex gap-2">
               <button type="button" onClick={onClose}
