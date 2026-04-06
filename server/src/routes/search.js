@@ -8,6 +8,7 @@ router.get('/', auth, async (req, res, next) => {
   try {
     const q = (req.query.q || '').trim()
     if (!q) return res.json({ chats: [], users: [], channels: [] })
+    if (q.length < 2) return res.status(400).json({ message: 'Запрос слишком короткий (минимум 2 символа)' })
     if (q.length > 100) return res.status(400).json({ message: 'Запрос слишком длинный' })
 
     // Получаем список заблокированных пользователей

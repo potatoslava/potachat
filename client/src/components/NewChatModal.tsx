@@ -24,13 +24,25 @@ export default function NewChatModal({ onClose }: Props) {
     setError('')
     
     // Валидация
-    if (tab === 'private' && !username.trim()) {
-      setError('Укажите имя пользователя')
-      return
-    }
-    if (tab !== 'private' && !name.trim()) {
-      setError('Укажите название')
-      return
+    if (tab === 'private') {
+      if (!username.trim()) {
+        setError('Укажите имя пользователя')
+        return
+      }
+      // Валидация формата username
+      if (!/^[a-zA-Z0-9_.]{3,32}$/.test(username.trim())) {
+        setError('Неверный формат username (3-32 символа, только буквы, цифры, _ и .)')
+        return
+      }
+    } else {
+      if (!name.trim()) {
+        setError('Укажите название')
+        return
+      }
+      if (name.trim().length > 128) {
+        setError('Название слишком длинное (максимум 128 символов)')
+        return
+      }
     }
     
     setCreating(true)
@@ -77,6 +89,7 @@ export default function NewChatModal({ onClose }: Props) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && create()}
+            maxLength={32}
             className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
           />
         ) : (
@@ -85,6 +98,7 @@ export default function NewChatModal({ onClose }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && create()}
+            maxLength={128}
             className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
           />
         )}

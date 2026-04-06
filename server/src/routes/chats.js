@@ -100,8 +100,12 @@ router.post('/private', auth, async (req, res, next) => {
   try {
     const { username } = req.body
     if (!username?.trim()) return res.status(400).json({ message: 'Укажите имя пользователя' })
+    // Валидация формата username
+    if (!/^[a-zA-Z0-9_.]{3,32}$/.test(username.trim())) {
+      return res.status(400).json({ message: 'Неверный формат username' })
+    }
 
-    const target = await prisma.user.findUnique({ where: { username } })
+    const target = await prisma.user.findUnique({ where: { username: username.trim() } })
     if (!target) return res.status(404).json({ message: 'Пользователь не найден' })
     if (target.id === req.userId) return res.status(400).json({ message: 'Нельзя создать чат с собой' })
 
