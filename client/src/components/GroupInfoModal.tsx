@@ -83,18 +83,49 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
+    // Проверка размера (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveMsg('Файл слишком большой (максимум 5MB)')
+      setTimeout(() => setSaveMsg(''), 3000)
+      return
+    }
+    
+    // Проверка типа
+    if (!file.type.startsWith('image/')) {
+      setSaveMsg('Только изображения')
+      setTimeout(() => setSaveMsg(''), 3000)
+      return
+    }
+    
     const reader = new FileReader()
     reader.onload = async () => {
       const base64 = reader.result as string
+      
+      // Проверка размера base64 (~7MB максимум)
+      if (base64.length > 7 * 1024 * 1024) {
+        setSaveMsg('Изображение слишком большое после конвертации')
+        setTimeout(() => setSaveMsg(''), 3000)
+        return
+      }
+      
       try {
         await api.patch(`/chats/${chat.id}/info`, { avatar: base64 })
         setInfo(i => i ? { ...i, avatar: base64 } : i)
         const { chats: currentChats, activeChat: currentActive, setChats: sc, setActiveChat: sac } = useChatStore.getState()
         sc(currentChats.map(c => c.id === chat.id ? { ...c, avatar: base64 } : c))
         if (currentActive?.id === chat.id) sac({ ...currentActive, avatar: base64 })
-      } catch {}
+        setSaveMsg('Аватар обновлён')
+        setTimeout(() => setSaveMsg(''), 2000)
+      } catch (e: any) {
+        setSaveMsg(e.response?.data?.message || 'Ошибка загрузки')
+        setTimeout(() => setSaveMsg(''), 3000)
+      }
     }
-    reader.onerror = () => { /* silent fail */ }
+    reader.onerror = () => { 
+      setSaveMsg('Ошибка чтения файла')
+      setTimeout(() => setSaveMsg(''), 3000)
+    }
     reader.readAsDataURL(file)
   }
 

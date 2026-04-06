@@ -36,13 +36,33 @@ export default function ProfileModal({ onClose }: Props) {
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
+    // Проверка размера (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMsg('Файл слишком большой (максимум 5MB)')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    
+    // Проверка типа
+    if (!file.type.startsWith('image/')) {
+      setMsg('Только изображения')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    
     const form = new FormData()
     form.append('avatar', file)
     try {
       const { data } = await api.post('/users/me/avatar', form)
       setAuth(data, token)
       api.get('/chats').then(({ data }) => setChats(data))
-    } catch { setMsg('Ошибка загрузки аватара') }
+      setMsg('Аватар обновлён')
+      setTimeout(() => setMsg(''), 2000)
+    } catch (e: any) { 
+      setMsg(e.response?.data?.message || 'Ошибка загрузки аватара')
+      setTimeout(() => setMsg(''), 3000)
+    }
   }
 
   return (

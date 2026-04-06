@@ -22,15 +22,26 @@ export default function NewChatModal({ onClose }: Props) {
   const create = async () => {
     if (creating) return
     setError('')
+    
+    // Валидация
+    if (tab === 'private' && !username.trim()) {
+      setError('Укажите имя пользователя')
+      return
+    }
+    if (tab !== 'private' && !name.trim()) {
+      setError('Укажите название')
+      return
+    }
+    
     setCreating(true)
     try {
       if (tab === 'private') {
-        const { data } = await api.post('/chats/private', { username })
+        const { data } = await api.post('/chats/private', { username: username.trim() })
         const latest = useChatStore.getState()
         if (!latest.chats.find(c => c.id === data.id)) latest.setChats([data, ...latest.chats])
         setActiveChat(data)
       } else {
-        const { data } = await api.post('/chats/group', { name, type: tab })
+        const { data } = await api.post('/chats/group', { name: name.trim(), type: tab })
         const latest = useChatStore.getState()
         latest.setChats([data, ...latest.chats])
         setActiveChat(data)
@@ -84,7 +95,7 @@ export default function NewChatModal({ onClose }: Props) {
           <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-chat text-muted text-sm hover:text-white transition">
             Отмена
           </button>
-          <button onClick={create} disabled={creating}
+          <button onClick={create} disabled={creating || (tab === 'private' ? !username.trim() : !name.trim())}
             className="flex-1 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
             {creating ? 'Создание...' : 'Создать'}
           </button>
