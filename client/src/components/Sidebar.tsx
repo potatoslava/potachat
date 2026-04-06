@@ -276,6 +276,8 @@ function ChatItem({ chat, active, isPinned, onClick, onContextMenu }: { chat: Ch
 
   const isOnline = otherId ? !!onlineUsers[otherId] : false
 
+  const isMuted = chat.muted || false
+
   return (
 
     <div onClick={onClick} onContextMenu={onContextMenu} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-sidebar-hover ${active ? 'bg-sidebar-hover' : ''}`}>
