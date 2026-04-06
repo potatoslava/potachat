@@ -80,11 +80,15 @@ export default function App() {
       const state = useChatStore.getState()
       state.setChats(state.chats.filter(c => c.id !== chatId))
       if (state.activeChat?.id === chatId) state.setActiveChat(null)
+      // Удаляем черновик
+      localStorage.removeItem(`draft:${chatId}`)
     }
     const onChatDeleted = ({ chatId }: { chatId: string }) => {
       const state = useChatStore.getState()
       state.setChats(state.chats.filter(c => c.id !== chatId))
       if (state.activeChat?.id === chatId) state.setActiveChat(null)
+      // Удаляем черновик
+      localStorage.removeItem(`draft:${chatId}`)
     }
     const onChatJoined = (chat: any) => {
       const state = useChatStore.getState()

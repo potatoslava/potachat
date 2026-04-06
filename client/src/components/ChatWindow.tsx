@@ -336,6 +336,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             const typing = typingUsers[activeChat.id] || []
             if (typing.length > 0) {
               const names = typing.slice(0, 2).join(', ')
+              const more = typing.length > 2 ? ` и ещё ${typing.length - 2}` : ''
               return (
                 <p className="text-xs text-primary flex items-center gap-1.5">
                   <span className="flex gap-0.5 items-center">
@@ -343,7 +344,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                     <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </span>
-                  {names} печатает...
+                  {names}{more} {typing.length === 1 ? 'печатает' : 'печатают'}...
                 </p>
               )
             }

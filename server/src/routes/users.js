@@ -87,6 +87,17 @@ router.post('/me/avatar', auth, upload.single('avatar'), async (req, res, next) 
   } catch (e) { next(e) }
 })
 
+// Get blocked users — должен быть ДО /:userId чтобы не конфликтовать
+router.get('/blocked', auth, async (req, res, next) => {
+  try {
+    const blocks = await prisma.block.findMany({
+      where: { blockerId: req.userId },
+      include: { blocked: { select: { id: true, username: true, displayName: true, avatar: true } } }
+    })
+    res.json(blocks.map(b => b.blocked))
+  } catch (e) { next(e) }
+})
+
 // Get user profile by ID
 router.get('/:userId', auth, async (req, res, next) => {
   try {
@@ -96,17 +107,6 @@ router.get('/:userId', auth, async (req, res, next) => {
     })
     if (!user) return res.status(404).json({ message: 'Пользователь не найден' })
     res.json(user)
-  } catch (e) { next(e) }
-})
-
-// Get blocked users — должен быть ДО /:userId/avatars чтобы не конфликтовать
-router.get('/blocked', auth, async (req, res, next) => {
-  try {
-    const blocks = await prisma.block.findMany({
-      where: { blockerId: req.userId },
-      include: { blocked: { select: { id: true, username: true, displayName: true, avatar: true } } }
-    })
-    res.json(blocks.map(b => b.blocked))
   } catch (e) { next(e) }
 })
 
