@@ -57,6 +57,7 @@ model ChatMember {
   chatId String
   userId String
   role   String @default("member")
+  muted  Boolean @default(false)
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

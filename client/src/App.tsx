@@ -99,7 +99,10 @@ export default function App() {
 
       if (state.activeChat?.id !== msg.chatId) {
         state.incrementUnread(msg.chatId, msg)
-        if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        // Проверяем muted перед показом уведомления
+        const chat = state.chats.find(c => c.id === msg.chatId)
+        const isMuted = chat?.muted || false
+        if (!isMuted && document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(msg.sender?.displayName || 'CocoDack', {
             body: msg.text || '📎 Файл',
             icon: msg.sender?.avatar || '/favicon.svg',

@@ -64,7 +64,7 @@ router.get('/', auth, async (req, res, next) => {
       }
     })
 
-    const chats = memberships.map(({ chat, role }) => {
+    const chats = memberships.map(({ chat, role, muted }) => {
       const lastMessage = chat.messages[0] || null
       let name = chat.name
       if (chat.type === 'private') {
@@ -79,6 +79,7 @@ router.get('/', auth, async (req, res, next) => {
         description: chat.description,
         inviteCode: (role === 'owner' || role === 'admin') ? chat.inviteCode : undefined,
         myRole: role,
+        muted: muted || false,
         lastMessage: lastMessage ? formatMessage(lastMessage) : null,
         unreadCount: chat._count.messages,
         members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })),
@@ -644,6 +645,23 @@ router.post('/:chatId/messages/:messageId/forward', auth, async (req, res, next)
     const formatted = formatMessage(forwarded)
     req.app.get('io').to(`chat:${targetChatId}`).emit('message', formatted)
     res.json(formatted)
+  } catch (e) { next(e) }
+})
+
+// Toggle mute for chat
+router.patch('/:chatId/mute', auth, async (req, res, next) => {
+  try {
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
+    })
+    if (!member) return res.status(403).json({ message: 'Нет доступа' })
+
+    const updated = await prisma.chatMember.update({
+      where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } },
+      data: { muted: !member.muted }
+    })
+
+    res.json({ muted: updated.muted })
   } catch (e) { next(e) }
 })
 

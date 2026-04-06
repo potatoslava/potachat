@@ -23,6 +23,7 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
   const isPinned = getPinnedIds().includes(chat.id)
   const isOwner = chat.myRole === 'owner'
   const canDelete = chat.type === 'private' || isOwner
+  const isMuted = chat.muted || false
 
   const togglePin = () => {
     const ids = getPinnedIds()
@@ -30,6 +31,15 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
     setPinnedIds(updated)
     // Обновляем pinned в store
     setChats(chats.map(c => c.id === chat.id ? { ...c, pinned: !isPinned } : c))
+    onClose()
+  }
+
+  const toggleMute = async () => {
+    try {
+      const { data } = await api.patch(`/chats/${chat.id}/mute`)
+      setChats(chats.map(c => c.id === chat.id ? { ...c, muted: data.muted } : c))
+      if (activeChat?.id === chat.id) setActiveChat({ ...activeChat, muted: data.muted })
+    } catch {}
     onClose()
   }
 
@@ -63,6 +73,17 @@ export default function ChatContextMenu({ chat, onClose, position }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
           {isPinned ? 'Открепить' : 'Закрепить'}
+        </button>
+        <button onClick={toggleMute}
+          className="w-full text-left px-4 py-2 text-sm text-white hover:bg-chat transition flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isMuted ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zm14.5-4.5l-3 3m0-3l3 3" />
+            )}
+          </svg>
+          {isMuted ? 'Включить уведомления' : 'Выключить уведомления'}
         </button>
         {chat.type === 'private' && (
           <button onClick={blockUser}

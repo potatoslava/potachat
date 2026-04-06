@@ -41,6 +41,7 @@ export interface Chat {
   inviteCode?: string
   myRole?: string
   pinned?: boolean
+  muted?: boolean
   members?: { id: string; username: string; displayName: string; avatar?: string; role?: string; online?: boolean }[]
   lastMessage?: Message
   unreadCount: number
