@@ -21,6 +21,17 @@ router.get('/me', auth, async (req, res, next) => {
 router.patch('/me', auth, async (req, res, next) => {
   try {
     const { displayName, bio, username } = req.body
+    
+    if (displayName !== undefined) {
+      const trimmed = displayName.trim()
+      if (trimmed.length === 0) return res.status(400).json({ message: 'Имя не может быть пустым' })
+      if (trimmed.length > 64) return res.status(400).json({ message: 'Имя слишком длинное (максимум 64 символа)' })
+    }
+    
+    if (bio !== undefined && bio.length > 512) {
+      return res.status(400).json({ message: 'О себе слишком длинное (максимум 512 символов)' })
+    }
+    
     if (username) {
       if (username.length < 3 || username.length > 32)
         return res.status(400).json({ message: 'Username должен быть от 3 до 32 символов' })
@@ -60,10 +71,19 @@ router.patch('/me/password', auth, async (req, res, next) => {
 })
 
 // Upload avatar
-router.post('/me/avatar', auth, upload.single('avatar'), async (req, res, next) => {
+const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB для аватарок
+
+router.post('/me/avatar', auth, avatarUpload.single('avatar'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'Файл не найден' })
     if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ message: 'Только изображения' })
+    
+    // Проверяем размер base64 (примерно на 33% больше оригинала)
+    const base64Size = Math.ceil(req.file.size * 1.37)
+    if (base64Size > 7 * 1024 * 1024) { // ~7MB в base64
+      return res.status(400).json({ message: 'Изображение слишком большое' })
+    }
+    
     const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
     const user = await prisma.user.update({
       where: { id: req.userId },
