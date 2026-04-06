@@ -234,6 +234,14 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const send = async () => {
     const currentChat = useChatStore.getState().activeChat
     if (!text.trim() || !currentChat || sending) return
+    
+    // Проверка длины
+    if (text.length > 4096) {
+      setSendError('Сообщение слишком длинное (максимум 4096 символов)')
+      setTimeout(() => setSendError(''), 3000)
+      return
+    }
+    
     setSending(true)
     setSendError('')
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
@@ -526,6 +534,11 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                   rows={1}
                   className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
                 />
+                {text.length > 3000 && (
+                  <span className={`text-xs flex-shrink-0 ${text.length > 4096 ? 'text-red-400' : 'text-muted'}`}>
+                    {text.length}/4096
+                  </span>
+                )}
               </div>
               <button onClick={send} disabled={!text.trim() || uploading || sending}
                 className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">

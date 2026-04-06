@@ -225,7 +225,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
       const q = userSearch.toLowerCase()
       return u.username.toLowerCase().includes(q) || 
              u.displayName.toLowerCase().includes(q) ||
-             u.lastIp?.toLowerCase().includes(q)
+             (u.lastIp && u.lastIp.toLowerCase().includes(q))
     })
 
   return (

@@ -88,7 +88,15 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
   updateUserAvatar: (userId, avatar) =>
     set((state) => {
-      const currentUserId = useAuthStore.getState().user?.id
+      // Получаем currentUserId из замыкания, а не из другого store
+      const currentUserId = (() => {
+        try {
+          return useAuthStore.getState().user?.id
+        } catch {
+          return null
+        }
+      })()
+      
       const updatedChats = state.chats.map((c) => ({
         ...c,
         members: c.members?.map((m) => m.id === userId ? { ...m, avatar } : m),

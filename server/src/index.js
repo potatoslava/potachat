@@ -88,17 +88,27 @@ io.on('connection', async (socket) => {
     if (chatId && typeof chatId === 'string') socket.leave(`chat:${chatId}`)
   })
 
-  socket.on('typing:start', ({ chatId }) => {
+  socket.on('typing:start', async ({ chatId }) => {
     if (!chatId || typeof chatId !== 'string') return
+    // Проверяем что пользователь является участником чата
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId, userId: socket.userId } }
+    }).catch(() => null)
+    if (!member) return
     socket.to(`chat:${chatId}`).emit('typing:start', { chatId, displayName: socket.displayName })
   })
-  socket.on('typing:stop', ({ chatId }) => {
+  socket.on('typing:stop', async ({ chatId }) => {
     if (!chatId || typeof chatId !== 'string') return
+    // Проверяем что пользователь является участником чата
+    const member = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId, userId: socket.userId } }
+    }).catch(() => null)
+    if (!member) return
     socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, displayName: socket.displayName })
   })
   socket.on('update:displayName', ({ displayName }) => {
-    if (displayName && typeof displayName === 'string') {
-      socket.displayName = displayName.slice(0, 64)
+    if (displayName && typeof displayName === 'string' && displayName.trim()) {
+      socket.displayName = displayName.trim().slice(0, 64)
     }
   })
 
