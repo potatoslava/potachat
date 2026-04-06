@@ -10,10 +10,28 @@ router.get('/', auth, async (req, res, next) => {
     if (!q) return res.json({ chats: [], users: [], channels: [] })
     if (q.length > 100) return res.status(400).json({ message: 'Запрос слишком длинный' })
 
+    // Получаем список заблокированных пользователей
+    const myBlocks = await prisma.block.findMany({
+      where: { blockerId: req.userId },
+      select: { blockedId: true }
+    })
+    const blockedByMe = myBlocks.map(b => b.blockedId)
+
+    const blocksMe = await prisma.block.findMany({
+      where: { blockedId: req.userId },
+      select: { blockerId: true }
+    })
+    const blockedMeIds = blocksMe.map(b => b.blockerId)
+
+    const allBlockedIds = [...new Set([...blockedByMe, ...blockedMeIds])]
+
+    // Поиск пользователей (исключая заблокированных и ботов)
     const users = await prisma.user.findMany({
       where: {
         AND: [
           { id: { not: req.userId } },
+          { id: { notIn: allBlockedIds } },
+          { username: { notIn: ['CocoDackBot', 'PotaChatBot'] } },
           {
             OR: [
               { username: { contains: q, mode: 'insensitive' } },
@@ -32,7 +50,8 @@ router.get('/', auth, async (req, res, next) => {
     })
 
     const myChats = memberships.map(m => m.chat)
-    // Для приватных чатов ищем по имени собеседника, а не по внутреннему имени чата
+    
+    // Для приватных чатов ищем по имени собеседника и берём его аватарку
     const privateMemberships = memberships.filter(m => m.chat.type === 'private')
     const privateChatsWithNames = []
 
@@ -42,15 +61,32 @@ router.get('/', auth, async (req, res, next) => {
           chatId: { in: privateMemberships.map(m => m.chat.id) },
           userId: { not: req.userId }
         },
-        include: { user: { select: { displayName: true } } }
+        include: { user: { select: { id: true, displayName: true, avatar: true } } }
       })
-      const memberNameMap = {}
-      privateMembers.forEach(m => { memberNameMap[m.chatId] = m.user.displayName })
+      
+      const memberDataMap = {}
+      privateMembers.forEach(m => { 
+        memberDataMap[m.chatId] = { 
+          name: m.user.displayName, 
+          avatar: m.user.avatar,
+          userId: m.user.id
+        } 
+      })
 
       privateMemberships.forEach(m => {
-        const name = memberNameMap[m.chat.id] || m.chat.name
-        if (name.toLowerCase().includes(q.toLowerCase())) {
-          privateChatsWithNames.push({ id: m.chat.id, name, type: m.chat.type, avatar: m.chat.avatar })
+        const data = memberDataMap[m.chat.id]
+        if (!data) return
+        
+        // Пропускаем если собеседник заблокирован
+        if (allBlockedIds.includes(data.userId)) return
+        
+        if (data.name.toLowerCase().includes(q.toLowerCase())) {
+          privateChatsWithNames.push({ 
+            id: m.chat.id, 
+            name: data.name, 
+            type: m.chat.type, 
+            avatar: data.avatar || m.chat.avatar 
+          })
         }
       })
     }
@@ -60,6 +96,7 @@ router.get('/', auth, async (req, res, next) => {
       ...myChats.filter(c => c.type === 'group' && c.name.toLowerCase().includes(q.toLowerCase()))
         .map(c => ({ id: c.id, name: c.name, type: c.type, avatar: c.avatar }))
     ]
+    
     const channels = myChats.filter(c => c.type === 'channel' && c.name.toLowerCase().includes(q.toLowerCase()))
 
     const publicChannels = await prisma.chat.findMany({
@@ -74,7 +111,10 @@ router.get('/', auth, async (req, res, next) => {
     res.json({
       users,
       chats,
-      channels: [...channels.map(c => ({ id: c.id, name: c.name, type: c.type, avatar: c.avatar })), ...publicChannels.map(c => ({ id: c.id, name: c.name, type: c.type, avatar: c.avatar }))]
+      channels: [
+        ...channels.map(c => ({ id: c.id, name: c.name, type: c.type, avatar: c.avatar })), 
+        ...publicChannels.map(c => ({ id: c.id, name: c.name, type: c.type, avatar: c.avatar }))
+      ]
     })
   } catch (e) { next(e) }
 })
