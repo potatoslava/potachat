@@ -25,6 +25,12 @@ router.post('/register', async (req, res, next) => {
       return res.status(400).json({ message: 'Отображаемое имя должно быть от 1 до 64 символов' })
     if (password.length < 6)
       return res.status(400).json({ message: 'Пароль должен быть не менее 6 символов' })
+    
+    // Валидация email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Неверный формат email' })
+    }
 
     const exists = await prisma.user.findUnique({ where: { username } })
     if (exists) return res.status(400).json({ message: 'Пользователь уже существует' })
@@ -106,6 +112,12 @@ router.post('/send-verification', async (req, res, next) => {
     }
     const { email } = req.body
     if (!email) return res.status(400).json({ message: 'Укажите email' })
+    
+    // Валидация email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Неверный формат email' })
+    }
 
     const emailExists = await prisma.user.findFirst({ where: { email, NOT: { id: payload.userId } } })
     if (emailExists) return res.status(400).json({ message: 'Email уже используется' })

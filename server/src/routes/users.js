@@ -40,13 +40,21 @@ router.patch('/me', auth, async (req, res, next) => {
       const exists = await prisma.user.findUnique({ where: { username } })
       if (exists && exists.id !== req.userId) return res.status(400).json({ message: 'Имя пользователя занято' })
     }
+    
+    const updateData = {}
+    if (displayName !== undefined && displayName.trim()) {
+      updateData.displayName = displayName.trim()
+    }
+    if (bio !== undefined) {
+      updateData.bio = bio
+    }
+    if (username) {
+      updateData.username = username
+    }
+    
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: {
-        ...(displayName?.trim() && { displayName: displayName.trim() }),
-        ...(bio !== undefined && { bio }),
-        ...(username && { username })
-      }
+      data: updateData
     })
     const { password, emailCode, emailCodeExpiry, bannedIp, lastIp, ...rest } = user
     res.json(rest)

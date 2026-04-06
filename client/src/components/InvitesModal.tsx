@@ -17,6 +17,7 @@ export default function InvitesModal({ onClose }: { onClose: () => void }) {
   const [invites, setInvites] = useState<Invite[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadInvites()
@@ -50,13 +51,18 @@ export default function InvitesModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const showError = (msg: string) => {
+    setError(msg)
+    setTimeout(() => setError(''), 3000)
+  }
+
   const accept = async (inviteId: string) => {
     setProcessing(inviteId)
     try {
       await api.post(`/invites/${inviteId}/accept`)
       setInvites(prev => prev.filter(inv => inv.id !== inviteId))
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Ошибка')
+      showError(e.response?.data?.message || 'Ошибка')
     } finally {
       setProcessing(null)
     }
@@ -68,7 +74,7 @@ export default function InvitesModal({ onClose }: { onClose: () => void }) {
       await api.post(`/invites/${inviteId}/decline`)
       setInvites(prev => prev.filter(inv => inv.id !== inviteId))
     } catch (e: any) {
-      alert(e.response?.data?.message || 'Ошибка')
+      showError(e.response?.data?.message || 'Ошибка')
     } finally {
       setProcessing(null)
     }
@@ -85,6 +91,12 @@ export default function InvitesModal({ onClose }: { onClose: () => void }) {
             </svg>
           </button>
         </div>
+
+        {error && (
+          <div className="mx-4 mt-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-xs text-center">
+            {error}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-4">
           {loading && <div className="text-center text-muted py-8">Загрузка...</div>}
