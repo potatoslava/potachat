@@ -77,8 +77,14 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     socket.emit('join-chat', activeChat.id)
     return () => {
       socket.emit('leave-chat', activeChat.id)
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
-      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+        typingTimerRef.current = null
+      }
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current)
+        searchTimerRef.current = null
+      }
       socket.emit('typing:stop', { chatId: activeChat.id })
     }
   }, [activeChat?.id])

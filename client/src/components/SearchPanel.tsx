@@ -40,7 +40,10 @@ export default function SearchPanel({ query, onClose }: Props) {
       }
     }, 300)
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
     }
   }, [query])
 

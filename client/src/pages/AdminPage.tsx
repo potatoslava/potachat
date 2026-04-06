@@ -362,8 +362,10 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
             <div className="bg-sidebar rounded-xl p-4 border border-border space-y-3">
               <p className="text-sm font-medium">Новый ивент</p>
               <input placeholder="Заголовок ивента" value={evTitle} onChange={e => setEvTitle(e.target.value)}
+                maxLength={256}
                 className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary" />
               <textarea placeholder="Описание (необязательно)" value={evDesc} onChange={e => setEvDesc(e.target.value)} rows={3}
+                maxLength={2048}
                 className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none" />
               <button onClick={createEvent} disabled={evCreating || !evTitle.trim()}
                 className="w-full py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
@@ -403,6 +405,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
               </select>
             </div>
             <textarea placeholder="Текст сообщения..." value={botText} onChange={e => setBotText(e.target.value)} rows={5}
+              maxLength={4096}
               className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary resize-none" />
             {botMsg && <p className={`text-xs ${botMsg.includes('Ошибка') ? 'text-red-400' : 'text-primary'}`}>{botMsg}</p>}
             <button onClick={sendBotMessage} disabled={botSending || !botText.trim()}
