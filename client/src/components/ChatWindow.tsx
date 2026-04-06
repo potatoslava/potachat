@@ -370,6 +370,18 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
+        <button onClick={async () => {
+          if (!activeChat) return
+          try {
+            const { data } = await api.get(`/chats/${activeChat.id}/messages`)
+            setMessages(activeChat.id, data)
+          } catch {}
+        }}
+          className="w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 text-muted hover:text-white">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
       </div>
 
       {/* Pinned message */}
@@ -586,6 +598,8 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
   const [showMenu, setShowMenu] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.text || '')
+  const [swipeX, setSwipeX] = useState(0)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
   
   const isAdminOrOwner = activeChat?.myRole === 'owner' || activeChat?.myRole === 'admin'
 
@@ -600,6 +614,28 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
       await api.post(`/chats/${activeChat.id}/messages/${msg.id}/pin`)
       setShowMenu(false)
     } catch {}
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null) return
+    const currentX = e.touches[0].clientX
+    const diff = currentX - touchStart
+    // Только свайп вправо и не более 80px
+    if (diff > 0 && diff < 80) {
+      setSwipeX(diff)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (swipeX > 40) {
+      onReply()
+    }
+    setSwipeX(0)
+    setTouchStart(null)
   }
 
   return (
@@ -659,6 +695,10 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
         <div
           onClick={() => setShowActions(v => !v)}
           onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); setShowActions(false) }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 ? 'transform 0.2s' : 'none' }}
           className={`rounded-2xl px-3 py-2 cursor-pointer select-none ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}
         >
           {!isOwn && showAvatar && <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>}

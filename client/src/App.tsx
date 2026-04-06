@@ -17,6 +17,16 @@ export default function App() {
   const updateUserAvatar = useChatStore((s) => s.updateUserAvatar)
   const [showAdmin, setShowAdmin] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme')
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark'
+  })
+
+  // Применяем тему
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   // Все хуки должны быть до любого условного return
   useEffect(() => {
@@ -48,6 +58,11 @@ export default function App() {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission()
     }
+    
+    // Создаём аудио для уведомлений
+    const notificationSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGS57OihUBELTKXh8bllHAU2jdXvzn0pBSh+zPDajzsKElyx6OyrWBUIQ5zd8sFuJAUuhM/z24k2Bhxqu+zpoVARC0yl4fG5ZRwFNo3V7859KQUofszw2o87ChJcsejtq1gVCEOc3fLBbiQFL4TP89uJNgYcarvs6aFQEQtMpeHxuWUcBTaN1e/OfSkFKH7M8NqPOwsSXLHo7atYFQhDnN3ywW4kBS+Ez/PbiTYGHGq77OmhUBELTKXh8bllHAU2jdXvzn0pBSh+zPDajzsKElyx6O2rWBUIQ5zd8sFuJAUvhM/z24k2Bhxqu+zpoVARC0yl4fG5ZRwFNo3V7859KQUofszw2o87ChJcsejtq1gVCEOc3fLBbiQFL4TP89uJNgYcarvs6aFQEQtMpeHxuWUcBTaN1e/OfSkFKH7M8NqPOwsSXLHo7atYFQhDnN3ywW4kBS+Ez/PbiTYGHGq77OmhUBELTKXh8bllHAU2jdXvzn0pBSh+zPDajzsKElyx6O2rWBUIQ5zd8sFuJAUvhM/z24k2Bhxqu+zpoVARC0yl4fG5ZRwFNo3V7859KQUofszw2o87ChJcsejtq1gVCEOc3fLBbiQFL4TP89uJNgYcarvs6aFQEQtMpeHxuWUcBTaN1e/OfSkFKH7M8NqPOwsSXLHo7atYFQhDnN3ywW4kBS+Ez/PbiTYGHGq77OmhUBELTKXh8bllHAU2jdXvzn0pBSh+zPDajzsKElyx6O2rWBUIQ5zd8sFuJAUvhM/z24k2Bhxqu+zpoVARC0yl4fG5ZRwFNo3V7859KQUofszw2o87ChJcsejtq1gVCEOc3fLBbiQFL4TP89uJNgYcarvs6aFQEQtMpeHxuWUcBTaN1e/OfSkFKH7M8NqPOwsSXLHo7atYFQhDnN3ywW4kBS+Ez/PbiTYGHGq77OmhUBELTKXh8bllHAU2jdXvzn0pBSh+zPDajzsKElyx6O2rWBUIQ5zd8sFuJAUvhM/z24k2Bhxqu+zpoVARC0yl4fG5ZRwFNo3V7859KQUofszw2o87ChJcsejtq1gVCEOc3fLBbiQFL4TP89uJNgYcarvs6aFQEQtMpeHxuWUcBTaN1e/OfSkFKH7M8NqPOwsSXLHo7atYFQhDnN3ywW4kBS+Ez/PbiTYGHGq77OmhUBELTKXh8bllHAU2jdXvzn0pBSh+zPDajzsKElyx6O2rWBUIQ5zd8sFuJAUvhM/z24k2Bhxqu+zpoVARC0yl4fG5ZRwFNo3V7859KQUofszw2o87ChJcsejtq1gVCEOc3fLBbiQFL4TP89uJNgYcarvsw==')
+    notificationSound.volume = 0.3
+    
     api.get('/chats/online').then(({ data }) => {
       Object.entries(data).forEach(([userId, online]) => {
         setUserOnline(userId, online as boolean)
@@ -102,11 +117,16 @@ export default function App() {
         // Проверяем muted перед показом уведомления
         const chat = state.chats.find(c => c.id === msg.chatId)
         const isMuted = chat?.muted || false
-        if (!isMuted && document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification(msg.sender?.displayName || 'CocoDack', {
-            body: msg.text || '📎 Файл',
-            icon: msg.sender?.avatar || '/favicon.svg',
-          })
+        if (!isMuted) {
+          // Воспроизводим звук
+          notificationSound.play().catch(() => {})
+          
+          if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification(msg.sender?.displayName || 'CocoDack', {
+              body: msg.text || '📎 Файл',
+              icon: msg.sender?.avatar || '/favicon.svg',
+            })
+          }
         }
       } else {
         // Чат активен — сообщение уже добавляется в ChatWindow через его собственный обработчик
@@ -148,7 +168,7 @@ export default function App() {
   return (
     <div className="flex overflow-hidden" style={{ height: '100dvh' }}>
       <div className={`${hasRight ? 'hidden md:flex' : 'flex'} w-full md:w-80`}>
-        <Sidebar onOpenAdmin={openAdmin} showAdmin={showAdmin} onOpenSettings={openSettings} showSettings={showSettings} />
+        <Sidebar onOpenAdmin={openAdmin} showAdmin={showAdmin} onOpenSettings={openSettings} showSettings={showSettings} theme={theme} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
       </div>
       <div className={`${hasRight ? 'flex' : 'hidden md:flex'} flex-1`}>
         {showAdmin

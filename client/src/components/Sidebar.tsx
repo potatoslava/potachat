@@ -22,9 +22,10 @@ import InvitesModal from './InvitesModal'
 
 
 
-export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSettings }: {
+export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSettings, theme, onThemeToggle }: {
   onOpenAdmin: () => void; showAdmin: boolean
   onOpenSettings: () => void; showSettings: boolean
+  theme: 'light' | 'dark'; onThemeToggle: () => void
 }) {
   const { chats, setChats, setActiveChat, activeChat } = useChatStore()
 
@@ -148,6 +149,12 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
               <button onClick={() => { onOpenSettings(); setShowMenu(false) }} className={`w-full text-left px-4 py-2 text-sm hover:bg-chat transition ${showSettings ? 'text-primary' : 'text-white'}`}>
 
                 ⚙️ Настройки
+
+              </button>
+
+              <button onClick={() => { onThemeToggle(); setShowMenu(false) }} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-chat transition">
+
+                {theme === 'dark' ? '☀️' : '🌙'} {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
 
               </button>
 
