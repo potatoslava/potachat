@@ -631,14 +631,23 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
     if (touchStart === null) return
     const currentX = e.touches[0].clientX
     const diff = currentX - touchStart
-    // Только свайп вправо и не более 80px
-    if (diff > 0 && diff < 80) {
-      setSwipeX(diff)
+    
+    // Для своих сообщений (справа) - свайп влево, для чужих - вправо
+    if (isOwn) {
+      // Свайп влево (отрицательный diff)
+      if (diff < 0 && diff > -80) {
+        setSwipeX(diff)
+      }
+    } else {
+      // Свайп вправо (положительный diff)
+      if (diff > 0 && diff < 80) {
+        setSwipeX(diff)
+      }
     }
   }
 
   const handleTouchEnd = () => {
-    if (swipeX > 40) {
+    if (Math.abs(swipeX) > 40) {
       onReply()
     }
     setSwipeX(0)
@@ -658,9 +667,9 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
       <div className="relative max-w-xs lg:max-w-md xl:max-w-lg">
 
         {/* Иконка reply при свайпе */}
-        {swipeX > 0 && (
-          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: Math.min(swipeX / 40, 1) }}>
+        {swipeX !== 0 && (
+          <div className={`absolute ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} top-1/2 -translate-y-1/2 text-muted pointer-events-none`}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: Math.min(Math.abs(swipeX) / 40, 1) }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
           </div>

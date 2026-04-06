@@ -15,6 +15,7 @@ export default {
         input: 'var(--bg-input)',
         border: 'var(--border-color)',
         muted: 'var(--text-muted)',
+        'text-primary': 'var(--text-primary)',
       }
     }
   },

@@ -18,7 +18,7 @@ export default function SearchPanel({ query, onClose }: Props) {
   const [results, setResults] = useState<SearchResults>({ users: [], chats: [], channels: [] })
   const [loading, setLoading] = useState(false)
   const [openError, setOpenError] = useState('')
-  const { chats, setChats, setActiveChat } = useChatStore()
+  const { chats, setChats, setActiveChat, onlineUsers } = useChatStore()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function SearchPanel({ query, onClose }: Props) {
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sidebar-hover transition text-left">
               <div className="relative flex-shrink-0">
                 <Avatar name={user.displayName} avatar={user.avatar} size="sm" />
-                {user.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-sidebar" />}
+                {onlineUsers[user.id] && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-sidebar" />}
               </div>
               <div>
                 <p className="text-sm font-medium text-white">{user.displayName}</p>

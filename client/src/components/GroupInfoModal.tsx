@@ -26,6 +26,7 @@ interface GroupInfo {
 
 export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose: () => void }) {
   const { user } = useAuthStore()
+  const { onlineUsers } = useChatStore()
   const [info, setInfo] = useState<GroupInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'info' | 'members' | 'media'>('info')
@@ -115,9 +116,10 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
     setAdding(true)
     setAddError('')
     try {
-      const { data } = await api.post(`/chats/${chat.id}/members`, { username: addUsername.trim() })
-      setInfo(i => i ? { ...i, members: [...i.members, data.member] } : i)
+      await api.post(`/chats/${chat.id}/members`, { username: addUsername.trim() })
       setAddUsername('')
+      setAddError('✅ Приглашение отправлено')
+      setTimeout(() => setAddError(''), 2000)
     } catch (e: any) {
       setAddError(e.response?.data?.message || 'Ошибка')
     } finally { setAdding(false) }
@@ -186,7 +188,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
               </button>
               <button onClick={() => setTab('members')}
                 className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${tab === 'members' ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
-                Участники ({info.members.length}) {info.members.filter(m => m.online).length > 0 && <span className="text-green-400">• {info.members.filter(m => m.online).length}</span>}
+                Участники ({info.members.length}) {info.members.filter(m => onlineUsers[m.id]).length > 0 && <span className="text-green-400">• {info.members.filter(m => onlineUsers[m.id]).length}</span>}
               </button>
               <button onClick={() => {
                 setTab('media')
@@ -302,7 +304,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                           className="flex-1 bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary" />
                         <button onClick={addMember} disabled={adding || !addUsername.trim()}
                           className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-dark transition disabled:opacity-50">
-                          {adding ? '...' : 'Добавить'}
+                          {adding ? '...' : 'Пригласить'}
                         </button>
                       </div>
                       {addError && <p className="text-red-400 text-xs">{addError}</p>}
@@ -320,7 +322,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                           ? <img src={m.avatar} className="w-full h-full object-cover" alt="" />
                           : m.displayName[0]?.toUpperCase()
                         }
-                        {m.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-chat" />}
+                        {onlineUsers[m.id] && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-chat" />}
                       </div>
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewingUserId(m.id)}>
                         <p className="text-sm font-medium text-white truncate">{m.displayName}</p>

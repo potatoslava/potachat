@@ -15,7 +15,7 @@ interface UserProfile {
 
 export default function UserProfileModal({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { user: currentUser } = useAuthStore()
-  const { chats, setChats, setActiveChat } = useChatStore()
+  const { chats, setChats, setActiveChat, onlineUsers } = useChatStore()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [isBlocked, setIsBlocked] = useState(false)
@@ -114,7 +114,7 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
           <h3 className="text-lg font-semibold mt-3">{profile.displayName}</h3>
           <p className="text-sm text-muted">@{profile.username}</p>
           <p className="text-xs text-muted mt-1">
-            {profile.online ? '🟢 в сети' : profile.lastSeen ? `был(а) ${formatLastSeen(profile.lastSeen)}` : '⚫ не в сети'}
+            {onlineUsers[userId] ? '🟢 в сети' : profile.lastSeen ? `был(а) ${formatLastSeen(profile.lastSeen)}` : '⚫ не в сети'}
           </p>
         </div>
 
