@@ -102,6 +102,8 @@ router.post('/events', auth, adminOnly, async (req, res, next) => {
     if (!title?.trim()) return res.status(400).json({ message: 'Укажите заголовок' })
     if (title.trim().length > 256) return res.status(400).json({ message: 'Заголовок слишком длинный (максимум 256 символов)' })
     if (description && description.length > 2048) return res.status(400).json({ message: 'Описание слишком длинное (максимум 2048 символов)' })
+    if (title.trim().length > 256) return res.status(400).json({ message: 'Заголовок слишком длинный (максимум 256 символов)' })
+    if (description && description.length > 2048) return res.status(400).json({ message: 'Описание слишком длинное (максимум 2048 символов)' })
 
     const event = await prisma.event.create({ data: { title: title.trim(), description: description?.trim() || null } })
 
@@ -191,6 +193,7 @@ router.post('/bot-message', auth, adminOnly, async (req, res, next) => {
   try {
     const { userId, text } = req.body
     if (!userId || !text?.trim()) return res.status(400).json({ message: 'Укажите userId и text' })
+    if (text.length > 4096) return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 4096 символов)' })
     if (text.trim().length > 4096) return res.status(400).json({ message: 'Текст слишком длинный (максимум 4096 символов)' })
 
     const bot = await prisma.user.findUnique({ where: { username: 'CocoDackBot' } })
@@ -223,6 +226,7 @@ router.post('/broadcast', auth, adminOnly, async (req, res, next) => {
   try {
     const { text } = req.body
     if (!text?.trim()) return res.status(400).json({ message: 'Укажите текст' })
+    if (text.length > 4096) return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 4096 символов)' })
     if (text.trim().length > 4096) return res.status(400).json({ message: 'Текст слишком длинный (максимум 4096 символов)' })
 
     const bot = await prisma.user.findUnique({ where: { username: 'CocoDackBot' } })
