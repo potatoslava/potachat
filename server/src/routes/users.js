@@ -87,6 +87,18 @@ router.post('/me/avatar', auth, upload.single('avatar'), async (req, res, next) 
   } catch (e) { next(e) }
 })
 
+// Get user profile by ID
+router.get('/:userId', auth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.userId },
+      select: { id: true, username: true, displayName: true, avatar: true, bio: true, online: true, lastSeen: true }
+    })
+    if (!user) return res.status(404).json({ message: 'Пользователь не найден' })
+    res.json(user)
+  } catch (e) { next(e) }
+})
+
 // Get blocked users — должен быть ДО /:userId/avatars чтобы не конфликтовать
 router.get('/blocked', auth, async (req, res, next) => {
   try {

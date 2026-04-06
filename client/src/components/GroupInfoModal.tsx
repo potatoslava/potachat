@@ -3,6 +3,7 @@ import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { useChatStore } from '../store/chatStore'
 import type { Chat } from '../types'
+import UserProfileModal from './UserProfileModal'
 
 interface GroupMember {
   id: string
@@ -42,6 +43,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   const [media, setMedia] = useState<any[]>([])
   const [mediaLoading, setMediaLoading] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -184,7 +186,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
               </button>
               <button onClick={() => setTab('members')}
                 className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition ${tab === 'members' ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
-                Участники ({info.members.length})
+                Участники ({info.members.length}) {info.members.filter(m => m.online).length > 0 && <span className="text-green-400">• {info.members.filter(m => m.online).length}</span>}
               </button>
               <button onClick={() => {
                 setTab('media')
@@ -310,13 +312,17 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
                   {/* Members list */}
                   {info.members.map(m => (
                     <div key={m.id} className="flex items-center gap-3 bg-chat rounded-xl px-3 py-2.5">
-                      <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+                      <div 
+                        className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden cursor-pointer relative"
+                        onClick={() => setViewingUserId(m.id)}
+                      >
                         {m.avatar && (m.avatar.startsWith('data:') || m.avatar.startsWith('http'))
                           ? <img src={m.avatar} className="w-full h-full object-cover" alt="" />
                           : m.displayName[0]?.toUpperCase()
                         }
+                        {m.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-chat" />}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewingUserId(m.id)}>
                         <p className="text-sm font-medium text-white truncate">{m.displayName}</p>
                         <p className="text-xs text-muted">@{m.username}</p>
                       </div>
@@ -381,6 +387,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
         <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center">✕</button>
       </div>
     )}
+    {viewingUserId && <UserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />}
   </>
   )
 }
