@@ -34,7 +34,7 @@ async function sendVerificationCode(email, code) {
       res.on('data', chunk => data += chunk)
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          console.log('Email sent to', email)
+          console.log('Email sent successfully')
           resolve(data)
         } else {
           reject(new Error(`Brevo error ${res.statusCode}: ${data}`))
