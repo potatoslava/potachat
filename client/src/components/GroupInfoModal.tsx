@@ -61,6 +61,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
 
   const saveInfo = async () => {
     if (!info) return
+    if (!editName.trim()) return
     setSaving(true)
     try {
       const { data } = await api.patch(`/chats/${chat.id}/info`, { name: editName, description: editDesc })
@@ -90,6 +91,7 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
         if (currentActive?.id === chat.id) sac({ ...currentActive, avatar: base64 })
       } catch {}
     }
+    reader.onerror = () => { /* silent fail */ }
     reader.readAsDataURL(file)
   }
 
@@ -134,9 +136,10 @@ export default function GroupInfoModal({ chat, onClose }: { chat: Chat; onClose:
   }
 
   const leaveGroup = async () => {
+    if (!user) return
     if (!confirm('Покинуть группу?')) return
     try {
-      await api.delete(`/chats/${chat.id}/members/${user!.id}`)
+      await api.delete(`/chats/${chat.id}/members/${user.id}`)
       // Сервер пришлёт chat:left через сокет — App.tsx обработает
       onClose()
     } catch {}

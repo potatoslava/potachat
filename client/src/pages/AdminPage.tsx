@@ -39,6 +39,8 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
   const [actionError, setActionError] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  const [userSearch, setUserSearch] = useState('')
+
   const [botTarget, setBotTarget] = useState<string>('all')
   const [botText, setBotText] = useState('')
   const [botSending, setBotSending] = useState(false)
@@ -53,6 +55,9 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
   const [resetModal, setResetModal] = useState<{ id: string; name: string } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [resetMsg, setResetMsg] = useState('')
+
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupResult, setCleanupResult] = useState('')
 
   useEffect(() => { loadUsers() }, [])
 
@@ -196,7 +201,32 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
     } catch (e: any) { showError(e.response?.data?.message || 'Ошибка') }
   }
 
-  const visibleUsers = users.filter(u => u.username !== 'CocoDackBot')
+  const cleanupOrphaned = async () => {
+    if (!confirm('Очистить базу данных от потерянных записей (удалённые пользователи)? Это безопасная операция.')) return
+    setCleanupLoading(true)
+    setCleanupResult('')
+    try {
+      const { data } = await api.post('/admin/cleanup-orphaned')
+      setCleanupResult(`✅ ${data.message}`)
+      if (data.report.deleted > 0) {
+        setTimeout(() => loadUsers(), 1000)
+      }
+    } catch (e: any) {
+      setCleanupResult(`❌ ${e.response?.data?.message || 'Ошибка очистки'}`)
+    } finally {
+      setCleanupLoading(false)
+    }
+  }
+
+  const visibleUsers = users
+    .filter(u => u.username !== 'CocoDackBot')
+    .filter(u => {
+      if (!userSearch.trim()) return true
+      const q = userSearch.toLowerCase()
+      return u.username.toLowerCase().includes(q) || 
+             u.displayName.toLowerCase().includes(q) ||
+             u.lastIp?.toLowerCase().includes(q)
+    })
 
   return (
     <>
@@ -235,8 +265,35 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
         {/* USERS */}
         {tab === 'users' && (
           <>
+            <div className="bg-sidebar rounded-xl p-3 border border-border mb-3">
+              <input
+                placeholder="🔍 Поиск по username, имени или IP..."
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                className="w-full bg-chat border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
+              />
+            </div>
+            
+            <div className="bg-sidebar rounded-xl p-4 border border-border mb-3">
+              <p className="text-sm font-medium mb-2">🧹 Очистка базы данных</p>
+              <p className="text-xs text-muted mb-3">Удалить записи, связанные с удалёнными пользователями (безопасная операция)</p>
+              {cleanupResult && (
+                <p className={`text-xs mb-2 ${cleanupResult.startsWith('✅') ? 'text-primary' : 'text-red-400'}`}>
+                  {cleanupResult}
+                </p>
+              )}
+              <button onClick={cleanupOrphaned} disabled={cleanupLoading}
+                className="w-full py-2 rounded-xl bg-yellow-500/20 text-yellow-400 text-sm font-medium hover:bg-yellow-500/30 transition disabled:opacity-50">
+                {cleanupLoading ? 'Очистка...' : '🧹 Очистить потерянные записи'}
+              </button>
+            </div>
+
             {loading && <div className="text-center text-muted py-8">Загрузка...</div>}
-            {!loading && visibleUsers.length === 0 && <div className="text-center text-muted py-8">Нет пользователей</div>}
+            {!loading && visibleUsers.length === 0 && (
+              <div className="text-center text-muted py-8">
+                {userSearch.trim() ? 'Ничего не найдено' : 'Нет пользователей'}
+              </div>
+            )}
             {!loading && visibleUsers.map(u => (
               <div key={u.id} className="bg-sidebar rounded-xl p-4 border border-border">
                 <div className="flex items-center gap-3 mb-3">

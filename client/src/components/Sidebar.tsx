@@ -24,7 +24,6 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
   onOpenAdmin: () => void; showAdmin: boolean
   onOpenSettings: () => void; showSettings: boolean
 }) {
-
   const { chats, setChats, setActiveChat, activeChat } = useChatStore()
 
   const clearUnread = useChatStore((s) => s.clearUnread)
@@ -82,7 +81,9 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
     .sort((a, b) => {
       const aPin = pinnedIds.includes(a.id) ? 1 : 0
       const bPin = pinnedIds.includes(b.id) ? 1 : 0
-      return bPin - aPin
+      if (aPin !== bPin) return bPin - aPin
+      // Сохраняем порядок из store (уже отсортирован по времени)
+      return 0
     })
 
 
@@ -95,7 +96,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
         <div className="relative menu-anchor">
 
-          <button onClick={onOpenSettings}>
+          <button onClick={() => setShowMenu(v => !v)}>
 
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden ${isAdmin ? 'bg-yellow-500' : 'bg-primary'}`}>
 
@@ -132,6 +133,12 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
                 </button>
 
               )}
+
+              <button onClick={() => { onOpenSettings(); setShowMenu(false) }} className={`w-full text-left px-4 py-2 text-sm hover:bg-chat transition ${showSettings ? 'text-primary' : 'text-white'}`}>
+
+                ⚙️ Настройки
+
+              </button>
 
               <button onClick={logout} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-chat transition">
 
@@ -180,7 +187,6 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
       {isAdmin && (
 
         <button onClick={onOpenAdmin} className={`flex items-center gap-3 px-4 py-3 transition hover:bg-sidebar-hover border-b border-border w-full ${showAdmin ? 'bg-sidebar-hover' : ''}`}>
-
           <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center text-xl flex-shrink-0">🛡️</div>
 
           <div className="flex-1 min-w-0 text-left">
@@ -208,7 +214,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
         {!isSearching && filtered.map((chat) => (
 
           <ChatItem key={chat.id} chat={chat} active={activeChat?.id === chat.id}
-
+            isPinned={pinnedIds.includes(chat.id)}
             onClick={() => { setActiveChat(chat); clearUnread(chat.id) }}
 
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ chat, x: e.clientX, y: e.clientY }) }} />
@@ -231,11 +237,10 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
 
 
-function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void }) {
+function ChatItem({ chat, active, isPinned, onClick, onContextMenu }: { chat: Chat; active: boolean; isPinned: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void }) {
 
   const BOT_USERNAMES = ['CocoDackBot', 'PotaChatBot']
   const isBot = chat.type === 'private' && chat.members?.some(m => BOT_USERNAMES.includes(m.username))
-  const isPinned = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]').includes(chat.id) } catch { return false } })()
 
   const { onlineUsers } = useChatStore()
 
@@ -254,11 +259,24 @@ function ChatItem({ chat, active, onClick, onContextMenu }: { chat: Chat; active
       <div className="relative flex-shrink-0">
 
         {(() => {
-          const mv = chat.type === 'private' ? chat.members?.find((m: any) => m.id !== user?.id)?.avatar : undefined
-          const av = mv || chat.avatar
-          return av && (av.startsWith('data:') || av.startsWith('http'))
-            ? <img src={av} className="w-12 h-12 rounded-full object-cover" alt="" />
-            : <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">{chat.type === 'channel' ? '#' : chat.name[0]?.toUpperCase()}</div>
+          // Для приватного чата — аватарка собеседника, для группы/канала — аватарка чата
+          const avatar = chat.type === 'private'
+            ? chat.members?.find((m: any) => m.id !== user?.id)?.avatar
+            : chat.avatar
+          
+          if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))) {
+            return <img src={avatar} className="w-12 h-12 rounded-full object-cover" alt="" />
+          }
+          
+          return (
+            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">
+              {chat.type === 'channel' ? '#' : chat.type === 'group' ? (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              ) : chat.name[0]?.toUpperCase()}
+            </div>
+          )
         })()}
 
         {chat.type === 'private' && isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-sidebar" />}

@@ -54,41 +54,44 @@ export default function App() {
       })
     }).catch(() => {})
 
-    socket.on('user:status', ({ userId, online, lastSeen }: { userId: string; online: boolean; lastSeen?: string }) => {
+    const onUserStatus = ({ userId, online, lastSeen }: { userId: string; online: boolean; lastSeen?: string }) => {
       setUserOnline(userId, online)
       if (!online && lastSeen) setUserLastSeen(userId, lastSeen)
-    })
-    socket.on('user:avatar', ({ userId, avatar }: { userId: string; avatar: string }) => {
+    }
+    const onUserAvatar = ({ userId, avatar }: { userId: string; avatar: string }) => {
       updateUserAvatar(userId, avatar)
-    })
-    socket.on('chat:left', ({ chatId }: { chatId: string }) => {
+    }
+    const onChatLeft = ({ chatId }: { chatId: string }) => {
       const state = useChatStore.getState()
       state.setChats(state.chats.filter(c => c.id !== chatId))
       if (state.activeChat?.id === chatId) state.setActiveChat(null)
-    })
-    socket.on('chat:deleted', ({ chatId }: { chatId: string }) => {
+    }
+    const onChatDeleted = ({ chatId }: { chatId: string }) => {
       const state = useChatStore.getState()
       state.setChats(state.chats.filter(c => c.id !== chatId))
       if (state.activeChat?.id === chatId) state.setActiveChat(null)
-    })
-    socket.on('chat:joined', (chat: any) => {
+    }
+    const onChatJoined = (chat: any) => {
       const state = useChatStore.getState()
       if (!state.chats.find(c => c.id === chat.id)) {
         state.setChats([chat, ...state.chats])
       }
-    })
-    socket.on('message', (msg: any) => {
+    }
+    const onMessage = (msg: any) => {
       const state = useChatStore.getState()
       if (msg.senderId === useAuthStore.getState().user?.id) return
 
       const chatExists = state.chats.find(c => c.id === msg.chatId)
       if (!chatExists) {
         api.get('/chats').then(({ data: freshChats }) => {
-          // Читаем актуальный стейт в момент ответа, не из замыкания
           const latest = useChatStore.getState()
           const newChat = freshChats.find((c: any) => c.id === msg.chatId)
           if (newChat && !latest.chats.find((c: any) => c.id === newChat.id)) {
             latest.setChats([newChat, ...latest.chats])
+          }
+          // Инкрементируем непрочитанные для нового чата
+          if (newChat && latest.activeChat?.id !== msg.chatId) {
+            latest.incrementUnread(msg.chatId, msg)
           }
         }).catch(() => {})
         return
@@ -96,22 +99,33 @@ export default function App() {
 
       if (state.activeChat?.id !== msg.chatId) {
         state.incrementUnread(msg.chatId, msg)
-        if (document.hidden && Notification.permission === 'granted') {
+        if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(msg.sender?.displayName || 'CocoDack', {
             body: msg.text || '📎 Файл',
             icon: msg.sender?.avatar || '/favicon.svg',
           })
         }
+      } else {
+        // Чат активен — сообщение уже добавляется в ChatWindow через его собственный обработчик
+        // Здесь только обновляем lastMessage в списке чатов
+        state.updateLastMessage(msg.chatId, msg)
       }
-    })
+    }
+
+    socket.on('user:status', onUserStatus)
+    socket.on('user:avatar', onUserAvatar)
+    socket.on('chat:left', onChatLeft)
+    socket.on('chat:deleted', onChatDeleted)
+    socket.on('chat:joined', onChatJoined)
+    socket.on('message', onMessage)
 
     return () => {
-      socket.off('user:status')
-      socket.off('user:avatar')
-      socket.off('chat:left')
-      socket.off('chat:deleted')
-      socket.off('chat:joined')
-      socket.off('message')
+      socket.off('user:status', onUserStatus)
+      socket.off('user:avatar', onUserAvatar)
+      socket.off('chat:left', onChatLeft)
+      socket.off('chat:deleted', onChatDeleted)
+      socket.off('chat:joined', onChatJoined)
+      socket.off('message', onMessage)
       socket.disconnect()
     }
   }, [token])

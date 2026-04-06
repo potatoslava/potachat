@@ -26,12 +26,13 @@ export default function NewChatModal({ onClose }: Props) {
     try {
       if (tab === 'private') {
         const { data } = await api.post('/chats/private', { username })
-        const exists = chats.find(c => c.id === data.id)
-        if (!exists) setChats([data, ...chats])
+        const latest = useChatStore.getState()
+        if (!latest.chats.find(c => c.id === data.id)) latest.setChats([data, ...latest.chats])
         setActiveChat(data)
       } else {
         const { data } = await api.post('/chats/group', { name, type: tab })
-        setChats([data, ...chats])
+        const latest = useChatStore.getState()
+        latest.setChats([data, ...latest.chats])
         setActiveChat(data)
       }
       onClose()
@@ -64,6 +65,7 @@ export default function NewChatModal({ onClose }: Props) {
             placeholder="Имя пользователя"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && create()}
             className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
           />
         ) : (
@@ -71,6 +73,7 @@ export default function NewChatModal({ onClose }: Props) {
             placeholder={tab === 'group' ? 'Название группы' : 'Название канала'}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && create()}
             className="w-full bg-chat border border-border rounded-xl px-4 py-3 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
           />
         )}

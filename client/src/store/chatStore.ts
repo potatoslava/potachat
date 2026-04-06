@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Chat, Message } from '../types'
+import { useAuthStore } from './authStore'
 
 interface ChatState {
   chats: Chat[]
@@ -86,25 +87,44 @@ export const useChatStore = create<ChatState>((set) => ({
       lastSeenUsers: { ...state.lastSeenUsers, [userId]: lastSeen },
     })),
   updateUserAvatar: (userId, avatar) =>
-    set((state) => ({
-      // обновляем аватар в списке чатов (members)
-      chats: state.chats.map((c) => ({
+    set((state) => {
+      const currentUserId = useAuthStore.getState().user?.id
+      const updatedChats = state.chats.map((c) => ({
         ...c,
         members: c.members?.map((m) => m.id === userId ? { ...m, avatar } : m),
-        // если это приватный чат с этим юзером — обновляем и avatar чата
-        avatar: c.type === 'private' && c.members?.some(m => m.id === userId) ? avatar : c.avatar,
-      })),
-      // обновляем аватар отправителя в сообщениях
-      messages: Object.fromEntries(
-        Object.entries(state.messages).map(([chatId, msgs]) => [
-          chatId,
-          msgs.map((m) => m.senderId === userId && m.sender
-            ? { ...m, sender: { ...m.sender, avatar } }
-            : m
-          )
-        ])
-      ),
-    })),
+        // если это приватный чат с этим юзером (не с собой) — обновляем и avatar чата
+        avatar: c.type === 'private' && userId !== currentUserId && c.members?.some(m => m.id === userId) ? avatar : c.avatar,
+      }))
+      // Обновляем activeChat если аватар относится к нему
+      let updatedActiveChat = state.activeChat
+      if (state.activeChat) {
+        const updatedChat = updatedChats.find(c => c.id === state.activeChat!.id)
+        if (updatedChat) updatedActiveChat = updatedChat
+        // Если activeChat не в списке чатов — обновляем его members напрямую
+        else if (state.activeChat.members?.some(m => m.id === userId)) {
+          updatedActiveChat = {
+            ...state.activeChat,
+            members: state.activeChat.members?.map(m => m.id === userId ? { ...m, avatar } : m),
+            avatar: state.activeChat.type === 'private' && userId !== currentUserId && state.activeChat.members?.some(m => m.id === userId)
+              ? avatar : state.activeChat.avatar,
+          }
+        }
+      }
+      return {
+        chats: updatedChats,
+        activeChat: updatedActiveChat,
+        // обновляем аватар отправителя в сообщениях
+        messages: Object.fromEntries(
+          Object.entries(state.messages).map(([chatId, msgs]) => [
+            chatId,
+            msgs.map((m) => m.senderId === userId && m.sender
+              ? { ...m, sender: { ...m.sender, avatar } }
+              : m
+            )
+          ])
+        ),
+      }
+    }),
   incrementUnread: (chatId, message) =>
     set((state) => {
       const pinnedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] } })()

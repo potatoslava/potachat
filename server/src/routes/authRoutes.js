@@ -35,9 +35,10 @@ router.post('/register', async (req, res, next) => {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null
     const hashed = await bcrypt.hash(password, 10)
     const code = generateCode()
+    const expiry = new Date(Date.now() + 10 * 60 * 1000)
 
     const user = await prisma.user.create({
-      data: { username, displayName, password: hashed, email, emailCode: code, lastIp: ip }
+      data: { username, displayName, password: hashed, email, emailCode: code, emailCodeExpiry: expiry, lastIp: ip }
     })
 
     try {
@@ -48,7 +49,7 @@ router.post('/register', async (req, res, next) => {
       return res.status(500).json({ message: 'Не удалось отправить письмо: ' + e.message })
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET)
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' })
     createWelcomeChat(user.id).catch(console.error)
     res.json({ user: sanitize(user), token, needVerification: true })
   } catch (e) { next(e) }
@@ -63,7 +64,11 @@ router.post('/verify-email', async (req, res, next) => {
     if (!user) return res.status(404).json({ message: 'Пользователь не найден' })
     if (user.emailVerified) return res.json({ success: true })
     if (user.emailCode !== code) return res.status(400).json({ message: 'Неверный код' })
-    await prisma.user.update({ where: { id: userId }, data: { emailVerified: true, emailCode: null } })
+    // Проверяем срок действия кода
+    if (user.emailCodeExpiry && new Date() > user.emailCodeExpiry) {
+      return res.status(400).json({ message: 'Код истёк. Запросите новый' })
+    }
+    await prisma.user.update({ where: { id: userId }, data: { emailVerified: true, emailCode: null, emailCodeExpiry: null } })
     res.json({ success: true })
   } catch (e) { next(e) }
 })
@@ -76,7 +81,8 @@ router.post('/resend-code', async (req, res, next) => {
     if (!user || !user.email) return res.status(404).json({ message: 'Не найдено' })
     if (user.emailVerified) return res.json({ success: true })
     const code = generateCode()
-    await prisma.user.update({ where: { id: userId }, data: { emailCode: code } })
+    const expiry = new Date(Date.now() + 10 * 60 * 1000) // 10 минут
+    await prisma.user.update({ where: { id: userId }, data: { emailCode: code, emailCodeExpiry: expiry } })
     try {
       await sendVerificationCode(user.email, code)
     } catch (e) {
@@ -105,7 +111,8 @@ router.post('/send-verification', async (req, res, next) => {
     if (emailExists) return res.status(400).json({ message: 'Email уже используется' })
 
     const code = generateCode()
-    await prisma.user.update({ where: { id: payload.userId }, data: { email, emailCode: code } })
+    const expiry = new Date(Date.now() + 10 * 60 * 1000)
+    await prisma.user.update({ where: { id: payload.userId }, data: { email, emailCode: code, emailCodeExpiry: expiry } })
     try {
       await sendVerificationCode(email, code)
     } catch (e) {
@@ -133,15 +140,14 @@ router.post('/login', async (req, res, next) => {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null
     await prisma.user.update({ where: { id: user.id }, data: { lastIp: ip } })
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET)
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' })
     createWelcomeChat(user.id).catch(console.error)
-
     res.json({ user: sanitize(user), token, needVerification: !user.emailVerified })
   } catch (e) { next(e) }
 })
 
 function sanitize(u) {
-  const { password, emailCode, ...rest } = u
+  const { password, emailCode, emailCodeExpiry, ...rest } = u
   return rest
 }
 

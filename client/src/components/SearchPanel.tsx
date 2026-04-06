@@ -56,9 +56,20 @@ export default function SearchPanel({ query, onClose }: Props) {
     if (existing) {
       setActiveChat(existing)
     } else {
-      const chat: Chat = { id: item.id, name: item.name, type: item.type as any, avatar: item.avatar, unreadCount: 0, createdAt: new Date().toISOString() }
-      setChats([chat, ...chats])
-      setActiveChat(chat)
+      // Загружаем полные данные чата с сервера чтобы получить members
+      api.get('/chats').then(({ data: freshChats }) => {
+        const found = freshChats.find((c: Chat) => c.id === item.id)
+        if (found) {
+          const latest = useChatStore.getState()
+          if (!latest.chats.find(c => c.id === found.id)) latest.setChats([found, ...latest.chats])
+          setActiveChat(found)
+        }
+      }).catch(() => {
+        // Fallback: открываем без members
+        const chat: Chat = { id: item.id, name: item.name, type: item.type as any, avatar: item.avatar, unreadCount: 0, createdAt: new Date().toISOString() }
+        setChats([chat, ...chats])
+        setActiveChat(chat)
+      })
     }
     onClose()
   }
@@ -143,7 +154,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Avatar({ name, avatar, size, icon }: { name: string; avatar?: string; size: 'sm'; icon?: string }) {
   const sz = 'w-9 h-9'
-  if (avatar) return <img src={avatar} className={`${sz} rounded-full object-cover flex-shrink-0`} alt="" />
+  if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))) {
+    return <img src={avatar} className={`${sz} rounded-full object-cover flex-shrink-0`} alt="" />
+  }
   return (
     <div className={`${sz} rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
       {icon === 'channel' ? '#' : icon === 'group' ? (

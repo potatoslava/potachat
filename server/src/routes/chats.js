@@ -20,14 +20,15 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } })
 
-// Get online statuses for chat members
+// Get online statuses for chat members (excluding self)
 router.get('/online', auth, async (req, res, next) => {
   try {
     const memberships = await prisma.chatMember.findMany({
       where: { userId: req.userId },
-      include: { chat: { include: { members: true } } }
+      include: { chat: { include: { members: { where: { userId: { not: req.userId } } } } } }
     })
     const userIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
+    if (userIds.length === 0) return res.json({})
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, online: true }
@@ -47,7 +48,17 @@ router.get('/', auth, async (req, res, next) => {
         chat: {
           include: {
             messages: { orderBy: { createdAt: 'desc' }, take: 1, include: { sender: true } },
-            members: { include: { user: true } }
+            members: { include: { user: true } },
+            _count: {
+              select: {
+                messages: {
+                  where: {
+                    senderId: { not: req.userId },
+                    read: false
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -69,8 +80,8 @@ router.get('/', auth, async (req, res, next) => {
         inviteCode: (role === 'owner' || role === 'admin') ? chat.inviteCode : undefined,
         myRole: role,
         lastMessage: lastMessage ? formatMessage(lastMessage) : null,
-        unreadCount: 0,
-        members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, role: m.role })),
+        unreadCount: chat._count.messages,
+        members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })),
         createdAt: chat.createdAt
       }
     })
@@ -105,8 +116,10 @@ router.post('/private', auth, async (req, res, next) => {
     })
 
     if (existing) {
-      const name = existing.members.find(m => m.userId !== req.userId)?.user.displayName || ''
-      return res.json({ id: existing.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: existing.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar })), createdAt: existing.createdAt })
+      const otherMember = existing.members.find(m => m.userId !== req.userId)
+      const name = otherMember?.user.displayName || ''
+      const avatar = otherMember?.user.avatar || null
+      return res.json({ id: existing.id, type: 'private', name, avatar, lastMessage: null, unreadCount: 0, myRole: 'member', members: existing.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online })), createdAt: existing.createdAt })
     }
 
     const chat = await prisma.chat.create({
@@ -118,8 +131,10 @@ router.post('/private', auth, async (req, res, next) => {
       include: { members: { include: { user: true } } }
     })
 
-    const name = chat.members.find(m => m.userId !== req.userId)?.user.displayName || ''
-    res.json({ id: chat.id, type: 'private', name, lastMessage: null, unreadCount: 0, members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar })), createdAt: chat.createdAt })
+    const otherMember = chat.members.find(m => m.userId !== req.userId)
+    const name = otherMember?.user.displayName || ''
+    const avatar = otherMember?.user.avatar || null
+    res.json({ id: chat.id, type: 'private', name, avatar, lastMessage: null, unreadCount: 0, myRole: 'member', members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online })), createdAt: chat.createdAt })
   } catch (e) { next(e) }
 })
 
@@ -128,6 +143,7 @@ router.post('/group', auth, async (req, res, next) => {
   try {
     const { name, type } = req.body
     if (!name?.trim()) return res.status(400).json({ message: 'Укажите название' })
+    if (name.trim().length > 128) return res.status(400).json({ message: 'Название слишком длинное (максимум 128 символов)' })
     if (!['group', 'channel'].includes(type)) return res.status(400).json({ message: 'Неверный тип чата' })
     const chat = await prisma.chat.create({
       data: {
@@ -140,7 +156,7 @@ router.post('/group', auth, async (req, res, next) => {
     res.json({
       id: chat.id, type: chat.type, name: chat.name, lastMessage: null, unreadCount: 0,
       myRole: 'owner',
-      members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, role: m.role })),
+      members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })),
       createdAt: chat.createdAt
     })
   } catch (e) { next(e) }
@@ -163,8 +179,9 @@ router.post('/join/:inviteCode', auth, async (req, res, next) => {
     if (existing) {
       return res.json({
         id: chat.id, type: chat.type, name: chat.name, avatar: chat.avatar,
-        description: chat.description, inviteCode: chat.inviteCode,
-        lastMessage: null, unreadCount: 0,
+        description: chat.description,
+        inviteCode: (existing.role === 'owner' || existing.role === 'admin') ? chat.inviteCode : undefined,
+        lastMessage: null, unreadCount: 0, myRole: existing.role,
         members: chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, role: m.role })),
         createdAt: chat.createdAt
       })
@@ -179,15 +196,15 @@ router.post('/join/:inviteCode', auth, async (req, res, next) => {
     req.app.get('io').to(`chat:${chat.id}`).emit('chat:member_add', { chatId: chat.id, member: memberData })
     req.app.get('io').to(`user:${req.userId}`).emit('chat:joined', {
       id: chat.id, type: chat.type, name: chat.name, avatar: chat.avatar,
-      description: chat.description, lastMessage: null, unreadCount: 0,
-      members: [...chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, role: m.role })), memberData],
+      description: chat.description, lastMessage: null, unreadCount: 0, myRole: 'member',
+      members: [...chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })), memberData],
       createdAt: chat.createdAt
     })
 
     res.json({
       id: chat.id, type: chat.type, name: chat.name, avatar: chat.avatar,
-      description: chat.description, lastMessage: null, unreadCount: 0,
-      members: [...chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, role: m.role })), memberData],
+      description: chat.description, lastMessage: null, unreadCount: 0, myRole: 'member',
+      members: [...chat.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })), memberData],
       createdAt: chat.createdAt
     })
   } catch (e) { next(e) }
@@ -207,7 +224,27 @@ router.get('/:chatId/messages', auth, async (req, res, next) => {
       orderBy: { createdAt: 'desc' },
       take: 100
     })
-    res.json(messages.reverse().map(formatMessage))
+
+    // Помечаем все входящие непрочитанные сообщения как прочитанные
+    const unreadIds = messages
+      .filter(m => m.senderId !== req.userId && !m.read)
+      .map(m => m.id)
+
+    if (unreadIds.length > 0) {
+      await prisma.message.updateMany({
+        where: { id: { in: unreadIds } },
+        data: { read: true }
+      })
+      // Уведомляем отправителей через сокет
+      const io = req.app.get('io')
+      const affectedMessages = messages.filter(m => unreadIds.includes(m.id))
+      const senderIds = [...new Set(affectedMessages.map(m => m.senderId))]
+      senderIds.forEach(senderId => {
+        io.to(`user:${senderId}`).emit('messages:read', { chatId: req.params.chatId })
+      })
+    }
+
+    res.json([...messages].reverse().map(m => formatMessage(unreadIds.includes(m.id) ? { ...m, read: true } : m)))
   } catch (e) { next(e) }
 })
 
@@ -216,6 +253,7 @@ router.post('/:chatId/messages', auth, async (req, res, next) => {
   try {
     const { text, replyToId } = req.body
     if (!text?.trim()) return res.status(400).json({ message: 'Сообщение не может быть пустым' })
+    if (text.length > 4096) return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 4096 символов)' })
 
     const member = await prisma.chatMember.findUnique({
       where: { chatId_userId: { chatId: req.params.chatId, userId: req.userId } }
@@ -231,18 +269,19 @@ router.post('/:chatId/messages', auth, async (req, res, next) => {
     }
 
     // Защита от спама: нельзя отправить то же сообщение в течение 3 секунд
+    const trimmedText = text.trim()
     const recent = await prisma.message.findFirst({
       where: {
         chatId: req.params.chatId,
         senderId: req.userId,
-        text,
+        text: trimmedText,
         createdAt: { gte: new Date(Date.now() - 3000) }
       }
     })
     if (recent) return res.status(429).json({ message: 'Подождите перед повторной отправкой' })
 
     const message = await prisma.message.create({
-      data: { chatId: req.params.chatId, senderId: req.userId, text, ...(replyToId && { replyToId }) },
+      data: { chatId: req.params.chatId, senderId: req.userId, text: trimmedText, ...(replyToId && { replyToId }) },
       include: { sender: true, replyTo: { include: { sender: true } } }
     })
 
@@ -273,7 +312,7 @@ router.post('/:chatId/messages/file', auth, upload.single('file'), async (req, r
     else if (mime.startsWith('audio/')) fileType = 'audio'
 
     const message = await prisma.message.create({
-      data: { chatId: req.params.chatId, senderId: req.userId, fileUrl: file.filename, fileType, fileName: file.originalname },
+      data: { chatId: req.params.chatId, senderId: req.userId, fileUrl: file.filename, fileType, fileName: file.originalname.slice(0, 255) },
       include: { sender: true }
     })
 
@@ -291,6 +330,7 @@ router.patch('/:chatId/messages/:messageId', auth, async (req, res, next) => {
   try {
     const { text } = req.body
     if (!text?.trim()) return res.status(400).json({ message: 'Текст не может быть пустым' })
+    if (text.length > 4096) return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 4096 символов)' })
 
     const message = await prisma.message.findUnique({ where: { id: req.params.messageId } })
     if (!message) return res.status(404).json({ message: 'Не найдено' })
@@ -373,6 +413,9 @@ router.patch('/:chatId/info', auth, async (req, res, next) => {
       return res.status(403).json({ message: 'Нет доступа' })
 
     const { name, description, avatar } = req.body
+    if (name !== undefined && name.trim().length === 0) return res.status(400).json({ message: 'Название не может быть пустым' })
+    if (name !== undefined && name.trim().length > 128) return res.status(400).json({ message: 'Название слишком длинное (максимум 128 символов)' })
+    if (description !== undefined && description.length > 1024) return res.status(400).json({ message: 'Описание слишком длинное (максимум 1024 символа)' })
     const chat = await prisma.chat.update({
       where: { id: req.params.chatId },
       data: {
@@ -423,7 +466,7 @@ router.post('/:chatId/members', auth, async (req, res, next) => {
       req.app.get('io').to(`user:${target.id}`).emit('chat:joined', {
         id: chatData.id, type: chatData.type, name: chatData.name, avatar: chatData.avatar,
         description: chatData.description, lastMessage: null, unreadCount: 0, myRole: 'member',
-        members: chatData.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, role: m.role })),
+        members: chatData.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })),
         createdAt: chatData.createdAt
       })
     }
@@ -461,6 +504,8 @@ router.delete('/:chatId/members/:userId', auth, async (req, res, next) => {
     req.app.get('io').to(`chat:${req.params.chatId}`).emit('chat:member_remove', { chatId: req.params.chatId, userId: req.params.userId })
     // Если пользователь сам вышел — убираем чат из его списка
     if (isSelf) req.app.get('io').to(`user:${req.userId}`).emit('chat:left', { chatId: req.params.chatId })
+    // Если кикнули другого — тоже убираем чат из его списка
+    else req.app.get('io').to(`user:${req.params.userId}`).emit('chat:left', { chatId: req.params.chatId })
     res.json({ success: true })
   } catch (e) { next(e) }
 })
@@ -517,6 +562,7 @@ router.get('/:chatId/search', auth, async (req, res, next) => {
 
     const q = (req.query.q || '').trim()
     if (!q) return res.json([])
+    if (q.length > 200) return res.status(400).json({ message: 'Запрос слишком длинный' })
 
     const messages = await prisma.message.findMany({
       where: { chatId: req.params.chatId, text: { contains: q, mode: 'insensitive' } },
@@ -593,13 +639,25 @@ router.delete('/:chatId', auth, async (req, res, next) => {
     })
     if (!member) return res.status(403).json({ message: 'Нет доступа' })
 
-    const chat = await prisma.chat.findUnique({ where: { id: req.params.chatId } })
-    if (chat && chat.type !== 'private' && member.role !== 'owner') {
+    const chat = await prisma.chat.findUnique({
+      where: { id: req.params.chatId },
+      include: { members: true }
+    })
+    if (!chat) return res.status(404).json({ message: 'Чат не найден' })
+    if (chat.type !== 'private' && member.role !== 'owner') {
       return res.status(403).json({ message: 'Только владелец может удалить этот чат' })
     }
+
+    // Собираем участников до удаления чтобы уведомить их
+    const memberUserIds = chat.members.map(m => m.userId)
+    const io = req.app.get('io')
+
     await prisma.chat.delete({ where: { id: req.params.chatId } })
-    // Уведомляем всех участников что чат удалён
-    req.app.get('io').to(`chat:${req.params.chatId}`).emit('chat:deleted', { chatId: req.params.chatId })
+
+    // Уведомляем всех участников что чат удалён (через личные комнаты, т.к. chat-комната уже не существует)
+    memberUserIds.forEach(uid => {
+      io.to(`user:${uid}`).emit('chat:deleted', { chatId: req.params.chatId })
+    })
     res.json({ success: true })
   } catch (e) { next(e) }
 })

@@ -55,6 +55,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     setSearchQuery('')
     setSearchResults([])
     setForwardMsg(null)
+    // Сбрасываем счётчик непрочитанных при открытии чата
+    useChatStore.getState().clearUnread(activeChat.id)
     api.get(`/chats/${activeChat.id}/messages`)
       .then(({ data }) => setMessages(activeChat.id, data))
       .catch(() => {})
@@ -73,17 +75,24 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     const onMessage = (msg: Message) => {
-      if (msg.chatId === activeChat?.id) {
-        if (msg.senderId === user?.id) return
+      const currentActiveChatId = useChatStore.getState().activeChat?.id
+      if (msg.chatId === currentActiveChatId) {
+        const currentUser = useAuthStore.getState().user
+        if (msg.senderId === currentUser?.id) return
         addMessage(msg.chatId, msg)
-        updateLastMessage(msg.chatId, msg)
+        // updateLastMessage вызывается в App.tsx для активного чата
       }
     }
-    const onEdit = (msg: Message) => { if (msg.chatId === activeChat?.id) editMessage(msg.chatId, msg) }
-    const onDelete = ({ id, chatId }: { id: string; chatId: string }) => { if (chatId === activeChat?.id) deleteMessage(chatId, id) }
+    const onEdit = (msg: Message) => {
+      if (msg.chatId === useChatStore.getState().activeChat?.id) editMessage(msg.chatId, msg)
+    }
+    const onDelete = ({ id, chatId }: { id: string; chatId: string }) => {
+      if (chatId === useChatStore.getState().activeChat?.id) deleteMessage(chatId, id)
+    }
 
     const onChatUpdate = (data: any) => {
-      if (data.id === activeChat?.id) {
+      const currentActiveChatId = useChatStore.getState().activeChat?.id
+      if (data.id === currentActiveChatId) {
         const s = useChatStore.getState()
         s.setChats(s.chats.map(c => c.id === data.id ? { ...c, name: data.name, avatar: data.avatar, description: data.description } : c))
         if (s.activeChat?.id === data.id) s.setActiveChat({ ...s.activeChat!, name: data.name, avatar: data.avatar, description: data.description })
@@ -91,7 +100,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     }
 
     const onMemberAdd = (data: any) => {
-      if (data.chatId === activeChat?.id) {
+      const currentActiveChatId = useChatStore.getState().activeChat?.id
+      if (data.chatId === currentActiveChatId) {
         const s = useChatStore.getState()
         s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: [...(c.members || []), data.member] } : c))
         if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat!, members: [...(s.activeChat!.members || []), data.member] })
@@ -99,11 +109,32 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     }
 
     const onMemberRemove = (data: any) => {
-      if (data.chatId === activeChat?.id) {
+      const currentActiveChatId = useChatStore.getState().activeChat?.id
+      if (data.chatId === currentActiveChatId) {
         const s = useChatStore.getState()
         s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: (c.members || []).filter(m => m.id !== data.userId) } : c))
         if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat!, members: (s.activeChat!.members || []).filter(m => m.id !== data.userId) })
       }
+    }
+
+    const onRoleChange = (data: any) => {
+      const currentActiveChatId = useChatStore.getState().activeChat?.id
+      if (data.chatId === currentActiveChatId) {
+        const s = useChatStore.getState()
+        const updateMembers = (members: any[]) =>
+          members.map(m => m.id === data.userId ? { ...m, role: data.role } : m)
+        s.setChats(s.chats.map(c => c.id === data.chatId ? { ...c, members: updateMembers(c.members || []) } : c))
+        if (s.activeChat?.id === data.chatId) s.setActiveChat({ ...s.activeChat!, members: updateMembers(s.activeChat!.members || []) })
+      }
+    }
+
+    const onMessagesRead = ({ chatId }: { chatId: string }) => {
+      const s = useChatStore.getState()
+      const currentUser = useAuthStore.getState().user
+      if (!s.messages[chatId]) return
+      s.setMessages(chatId, s.messages[chatId].map(m =>
+        m.senderId === currentUser?.id ? { ...m, read: true } : m
+      ))
     }
 
     socket.on('message', onMessage)
@@ -112,7 +143,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     socket.on('chat:update', onChatUpdate)
     socket.on('chat:member_add', onMemberAdd)
     socket.on('chat:member_remove', onMemberRemove)
-
+    socket.on('chat:role_change', onRoleChange)
+    socket.on('messages:read', onMessagesRead)
     const onTypingStart = ({ chatId, displayName }: { chatId: string; displayName: string }) => {
       setTyping(chatId, displayName, true)
     }
@@ -129,6 +161,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       socket.off('chat:update', onChatUpdate)
       socket.off('chat:member_add', onMemberAdd)
       socket.off('chat:member_remove', onMemberRemove)
+      socket.off('chat:role_change', onRoleChange)
+      socket.off('messages:read', onMessagesRead)
       socket.off('typing:start', onTypingStart)
       socket.off('typing:stop', onTypingStop)
     }
@@ -153,26 +187,28 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
 
   const handleTextChange = (val: string) => {
     setText(val)
-    if (!activeChat) return
-    socket.emit('typing:start', { chatId: activeChat.id })
+    const currentChatId = useChatStore.getState().activeChat?.id
+    if (!currentChatId) return
+    socket.emit('typing:start', { chatId: currentChatId })
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     typingTimerRef.current = setTimeout(() => {
-      socket.emit('typing:stop', { chatId: activeChat.id })
+      socket.emit('typing:stop', { chatId: currentChatId })
     }, 2000)
   }
 
   const send = async () => {
-    if (!text.trim() || !activeChat || sending) return
+    const currentChat = useChatStore.getState().activeChat
+    if (!text.trim() || !currentChat || sending) return
     setSending(true)
     setSendError('')
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
-    socket.emit('typing:stop', { chatId: activeChat.id })
+    socket.emit('typing:stop', { chatId: currentChat.id })
     try {
-      const { data } = await api.post(`/chats/${activeChat.id}/messages`, { text, replyToId: replyTo?.id })
-      addMessage(activeChat.id, data)
-      updateLastMessage(activeChat.id, data)
+      const { data } = await api.post(`/chats/${currentChat.id}/messages`, { text, replyToId: replyTo?.id })
+      addMessage(currentChat.id, data)
+      updateLastMessage(currentChat.id, data)
       setText('')
-      localStorage.removeItem(`draft:${activeChat.id}`)
+      localStorage.removeItem(`draft:${currentChat.id}`)
       setReplyTo(null)
     } catch (e: any) {
       setSendError(e.response?.data?.message || '')
@@ -183,19 +219,20 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   }
 
   const onDrop = useCallback(async (files: File[]) => {
-    if (!activeChat || !files[0]) return
+    const currentChat = useChatStore.getState().activeChat
+    if (!currentChat || !files[0]) return
     setUploading(true)
     const form = new FormData()
     form.append('file', files[0])
     try {
-      const { data } = await api.post(`/chats/${activeChat.id}/messages/file`, form)
-      addMessage(activeChat.id, data)
-      updateLastMessage(activeChat.id, data)
+      const { data } = await api.post(`/chats/${currentChat.id}/messages/file`, form)
+      addMessage(currentChat.id, data)
+      updateLastMessage(currentChat.id, data)
     } catch (e: any) {
       setSendError(e.response?.data?.message || 'Ошибка загрузки файла')
       setTimeout(() => setSendError(''), 3000)
     } finally { setUploading(false) }
-  }, [activeChat])
+  }, [addMessage, updateLastMessage])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, noClick: true, noKeyboard: true })
 
@@ -243,12 +280,20 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             }
           }}>
           {(() => {
-            const other = activeChat.members?.find(m => m.id !== user?.id)
-            const avatar = (other?.avatar || activeChat.avatar) as string | undefined
+            // Для приватного чата — аватарка собеседника, для группы/канала — аватарка чата
+            const avatar = activeChat.type === 'private'
+              ? activeChat.members?.find(m => m.id !== user?.id)?.avatar
+              : activeChat.avatar
+            
             if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))) {
               return <img src={avatar} className="w-full h-full object-cover" alt="" />
             }
-            return activeChat.type === 'channel' ? '#' : activeChat.name[0]?.toUpperCase()
+            
+            return activeChat.type === 'channel' ? '#' : activeChat.type === 'group' ? (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+              </svg>
+            ) : activeChat.name[0]?.toUpperCase()
           })()}
         </div>
         <div className="flex-1 min-w-0">
@@ -345,14 +390,18 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             onImageClick={(url) => { setLightboxUrl(url); setLightboxScale(1) }}
             onEdit={async (t) => {
               try {
-                const { data } = await api.patch(`/chats/${activeChat!.id}/messages/${msg.id}`, { text: t })
-                editMessage(activeChat!.id, data)
+                const chatId = useChatStore.getState().activeChat?.id
+                if (!chatId) return
+                const { data } = await api.patch(`/chats/${chatId}/messages/${msg.id}`, { text: t })
+                editMessage(chatId, data)
               } catch { /* сообщение не обновится, но не упадёт */ }
             }}
             onDelete={async () => {
               try {
-                await api.delete(`/chats/${activeChat!.id}/messages/${msg.id}`)
-                deleteMessage(activeChat!.id, msg.id)
+                const chatId = useChatStore.getState().activeChat?.id
+                if (!chatId) return
+                await api.delete(`/chats/${chatId}/messages/${msg.id}`)
+                deleteMessage(chatId, msg.id)
               } catch { /* сообщение не удалится, но не упадёт */ }
             }}
           />
@@ -425,8 +474,10 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         msg={forwardMsg}
         onClose={() => setForwardMsg(null)}
         onForward={async (targetChatId) => {
+          const chatId = useChatStore.getState().activeChat?.id
+          if (!chatId) { setForwardMsg(null); return }
           try {
-            await api.post(`/chats/${activeChat!.id}/messages/${forwardMsg.id}/forward`, { targetChatId })
+            await api.post(`/chats/${chatId}/messages/${forwardMsg.id}/forward`, { targetChatId })
             setForwardMsg(null)
           } catch {}
         }}
@@ -617,7 +668,11 @@ function ForwardModal({ msg, onClose, onForward }: {
               <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
                 {chat.avatar && (chat.avatar.startsWith('data:') || chat.avatar.startsWith('http'))
                   ? <img src={chat.avatar} className="w-full h-full object-cover" alt="" />
-                  : chat.name[0]?.toUpperCase()
+                  : chat.type === 'channel' ? '#' : chat.type === 'group' ? (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                    </svg>
+                  ) : chat.name[0]?.toUpperCase()
                 }
               </div>
               <p className="text-sm text-white truncate flex-1 text-left">{chat.name}</p>

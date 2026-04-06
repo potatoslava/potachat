@@ -39,12 +39,17 @@ app.get('*', (req, res) => {
   }
 })
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token
   if (!token) return next(new Error('Unauthorized'))
   try {
     const payload = jwt.verify(token, JWT_SECRET)
     socket.userId = payload.userId
+    // Проверяем что пользователь не забанен и не заморожен
+    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { banned: true, frozen: true } }).catch(() => null)
+    if (!user) return next(new Error('Unauthorized'))
+    if (user.banned) return next(new Error('Banned'))
+    if (user.frozen) return next(new Error('Frozen'))
     next()
   } catch {
     next(new Error('Unauthorized'))
@@ -69,18 +74,24 @@ io.on('connection', async (socket) => {
   })
 
   socket.on('join-chat', async (chatId) => {
+    // Валидируем chatId
+    if (!chatId || typeof chatId !== 'string') return
     // Проверяем что пользователь является участником чата
     const member = await prisma.chatMember.findUnique({
       where: { chatId_userId: { chatId, userId: socket.userId } }
     }).catch(() => null)
     if (member) socket.join(`chat:${chatId}`)
   })
-  socket.on('leave-chat', (chatId) => socket.leave(`chat:${chatId}`))
+  socket.on('leave-chat', (chatId) => {
+    if (chatId && typeof chatId === 'string') socket.leave(`chat:${chatId}`)
+  })
 
   socket.on('typing:start', ({ chatId }) => {
+    if (!chatId || typeof chatId !== 'string') return
     socket.to(`chat:${chatId}`).emit('typing:start', { chatId, displayName: socket.displayName })
   })
   socket.on('typing:stop', ({ chatId }) => {
+    if (!chatId || typeof chatId !== 'string') return
     socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, displayName: socket.displayName })
   })
   socket.on('update:displayName', ({ displayName }) => {
@@ -100,6 +111,11 @@ io.on('connection', async (socket) => {
     const contactIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
     contactIds.forEach(id => {
       io.to(`user:${id}`).emit('user:status', { userId: socket.userId, online: false, lastSeen: now.toISOString() })
+    })
+    // Чистим typing indicator во всех чатах где был пользователь
+    const chatIds = [...new Set(memberships.map(m => m.chatId))]
+    chatIds.forEach(chatId => {
+      socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, displayName: socket.displayName })
     })
   })
 })

@@ -45,7 +45,7 @@ export default function AuthPage() {
     try {
       await api.post('/auth/verify-email', { userId, code })
       if (pendingAuth) {
-        setAuth(pendingAuth.user, pendingAuth.token)
+        setAuth({ ...pendingAuth.user, emailVerified: true }, pendingAuth.token)
         window.location.reload()
       }
     } catch (err: any) {

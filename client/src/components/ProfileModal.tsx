@@ -16,11 +16,17 @@ export default function ProfileModal({ onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const save = async () => {
+    if (!displayName.trim()) return
     setSaving(true)
     try {
       const { data } = await api.patch('/users/me', { displayName, bio })
       setAuth(data, token)
       api.get('/chats').then(({ data }) => setChats(data))
+      // Обновляем displayName в сокете для typing индикатора
+      if (data.displayName) {
+        const { socket } = await import('../lib/socket')
+        socket.emit('update:displayName', { displayName: data.displayName })
+      }
       setMsg('Сохранено')
       setTimeout(() => setMsg(''), 2000)
     } catch { setMsg('Ошибка') }

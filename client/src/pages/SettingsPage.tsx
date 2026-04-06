@@ -126,6 +126,7 @@ function ProfileSection() {
   const [msg, setMsg] = useState('')
 
   const save = async () => {
+    if (!displayName.trim()) return
     setSaving(true)
     try {
       const { data } = await api.patch('/users/me', { displayName, bio })
@@ -194,6 +195,11 @@ function AccountSection() {
     try {
       const { data } = await api.patch('/users/me', { username: newUsername })
       setAuth(data, token)
+      // Перезагружаем чаты чтобы обновить отображение username
+      api.get('/chats').then(({ data: chatsData }) => {
+        const { setChats } = useChatStore.getState()
+        setChats(chatsData)
+      }).catch(() => {})
       setMsg('Имя пользователя изменено')
       setTimeout(() => setMsg(''), 2000)
     } catch (e: any) { setMsg(e.response?.data?.message || 'Ошибка') }
@@ -282,7 +288,7 @@ function PrivacySection() {
         <ToggleItem label="Показывать аватар всем" value={showAvatar} onChange={setShowAvatar} border />
         <ToggleItem label="Находить меня по username" value={allowSearch} onChange={setAllowSearch} border />
       </div>
-      <p className="text-xs text-muted text-center px-4">Настройки конфиденциальности применяются к вашему профилю</p>
+      <p className="text-xs text-muted text-center px-4">Настройки конфиденциальности будут доступны в следующем обновлении</p>
     </div>
   )
 }

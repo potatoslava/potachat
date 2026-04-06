@@ -12,7 +12,7 @@ router.get('/me', auth, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!user) return res.status(404).json({ message: 'Не найдено' })
-    const { password, emailCode, ...rest } = user
+    const { password, emailCode, emailCodeExpiry, ...rest } = user
     res.json(rest)
   } catch (e) { next(e) }
 })
@@ -32,12 +32,12 @@ router.patch('/me', auth, async (req, res, next) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: {
-        ...(displayName && { displayName }),
+        ...(displayName?.trim() && { displayName: displayName.trim() }),
         ...(bio !== undefined && { bio }),
         ...(username && { username })
       }
     })
-    const { password, emailCode, ...rest } = user
+    const { password, emailCode, emailCodeExpiry, ...rest } = user
     res.json(rest)
   } catch (e) { next(e) }
 })
@@ -70,8 +70,19 @@ router.post('/me/avatar', auth, upload.single('avatar'), async (req, res, next) 
       data: { avatar: base64 }
     })
     await prisma.avatarHistory.create({ data: { userId: req.userId, avatar: base64 } })
-    const { password, emailCode, ...rest } = user
-    req.app.get('io').emit('user:avatar', { userId: user.id, avatar: base64 })
+    const { password, emailCode, emailCodeExpiry, ...rest } = user
+    // Уведомляем только контакты пользователя, а не всех
+    const memberships = await prisma.chatMember.findMany({
+      where: { userId: req.userId },
+      include: { chat: { include: { members: { where: { userId: { not: req.userId } } } } } }
+    })
+    const contactIds = [...new Set(memberships.flatMap(m => m.chat.members.map(cm => cm.userId)))]
+    const io = req.app.get('io')
+    contactIds.forEach(id => {
+      io.to(`user:${id}`).emit('user:avatar', { userId: user.id, avatar: base64 })
+    })
+    // Обновляем и себе (для других вкладок)
+    io.to(`user:${req.userId}`).emit('user:avatar', { userId: user.id, avatar: base64 })
     res.json(rest)
   } catch (e) { next(e) }
 })
@@ -143,6 +154,7 @@ router.post('/support', auth, async (req, res, next) => {
   try {
     const { message } = req.body
     if (!message?.trim()) return res.status(400).json({ message: 'Напишите сообщение' })
+    if (message.length > 2048) return res.status(400).json({ message: 'Сообщение слишком длинное (максимум 2048 символов)' })
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!user) return res.status(404).json({ message: 'Не найдено' })
     const ticket = await prisma.supportTicket.create({

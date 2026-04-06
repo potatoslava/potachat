@@ -21,16 +21,18 @@ model User {
   frozen      Boolean  @default(false)
   bannedIp    String?
   lastIp      String?
-  email       String?  @unique
-  emailVerified Boolean @default(false)
-  emailCode   String?
+  email           String?  @unique
+  emailVerified   Boolean  @default(false)
+  emailCode       String?
+  emailCodeExpiry DateTime?
 
-  memberships ChatMember[]
-  messages    Message[]
-  blocking    Block[]      @relation("blocker")
-  blockedBy   Block[]      @relation("blocked")
+  memberships   ChatMember[]
+  messages      Message[]
+  blocking      Block[]        @relation("blocker")
+  blockedBy     Block[]        @relation("blocked")
   avatarHistory AvatarHistory[]
   supportTickets SupportTicket[]
+  messageReads  MessageRead[]
 }
 
 model Chat {
@@ -75,6 +77,7 @@ model Message {
   sender  User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
   replyTo Message? @relation("replies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies Message[] @relation("replies")
+  reads   MessageRead[]
 }
 
 model Block {
@@ -113,4 +116,16 @@ model SupportTicket {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
 }
