@@ -34,6 +34,8 @@ model User {
   avatarHistory AvatarHistory[]
   supportTickets SupportTicket[]
   messageReads  MessageRead[]
+  sentInvites   GroupInvite[] @relation("inviter")
+  receivedInvites GroupInvite[] @relation("invitee")
 }
 
 model Chat {
@@ -47,6 +49,7 @@ model Chat {
 
   members  ChatMember[]
   messages Message[]
+  invites  GroupInvite[]
 }
 
 model ChatMember {
@@ -129,4 +132,19 @@ model MessageRead {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
+}
+
+model GroupInvite {
+  id         String   @id @default(uuid())
+  chatId     String
+  inviterId  String
+  inviteeId  String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+
+  chat     Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  inviter  User @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee  User @relation("invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, inviteeId])
 }

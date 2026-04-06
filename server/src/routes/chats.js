@@ -433,7 +433,7 @@ router.patch('/:chatId/info', auth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// Add member to group — owner/admin only
+// Add member to group — owner/admin only (sends invite instead of direct add)
 router.post('/:chatId/members', auth, async (req, res, next) => {
   try {
     const member = await prisma.chatMember.findUnique({
@@ -453,24 +453,40 @@ router.post('/:chatId/members', auth, async (req, res, next) => {
     })
     if (existing) return res.status(400).json({ message: 'Пользователь уже в группе' })
 
-    await prisma.chatMember.create({ data: { chatId: req.params.chatId, userId: target.id, role: 'member' } })
-
-    const newMember = { id: target.id, username: target.username, displayName: target.displayName, avatar: target.avatar, online: target.online, role: 'member' }
-    req.app.get('io').to(`chat:${req.params.chatId}`).emit('chat:member_add', { chatId: req.params.chatId, member: newMember })
-    // Уведомляем добавленного пользователя — он получит чат в свой список
-    const chatData = await prisma.chat.findUnique({
-      where: { id: req.params.chatId },
-      include: { members: { include: { user: true } } }
+    // Проверяем есть ли уже приглашение
+    const existingInvite = await prisma.groupInvite.findUnique({
+      where: { chatId_inviteeId: { chatId: req.params.chatId, inviteeId: target.id } }
     })
-    if (chatData) {
-      req.app.get('io').to(`user:${target.id}`).emit('chat:joined', {
-        id: chatData.id, type: chatData.type, name: chatData.name, avatar: chatData.avatar,
-        description: chatData.description, lastMessage: null, unreadCount: 0, myRole: 'member',
-        members: chatData.members.map(m => ({ id: m.user.id, username: m.user.username, displayName: m.user.displayName, avatar: m.user.avatar, online: m.user.online, role: m.role })),
-        createdAt: chatData.createdAt
-      })
+    if (existingInvite && existingInvite.status === 'pending') {
+      return res.status(400).json({ message: 'Приглашение уже отправлено' })
     }
-    res.json({ success: true, member: newMember })
+
+    // Создаём приглашение
+    const invite = await prisma.groupInvite.create({
+      data: {
+        chatId: req.params.chatId,
+        inviterId: req.userId,
+        inviteeId: target.id,
+        status: 'pending'
+      },
+      include: {
+        chat: true,
+        inviter: { select: { displayName: true, avatar: true } }
+      }
+    })
+
+    // Уведомляем приглашённого пользователя
+    req.app.get('io').to(`user:${target.id}`).emit('group:invite', {
+      id: invite.id,
+      chatId: invite.chatId,
+      chatName: invite.chat.name,
+      chatAvatar: invite.chat.avatar,
+      inviterName: invite.inviter.displayName,
+      inviterAvatar: invite.inviter.avatar,
+      createdAt: invite.createdAt
+    })
+
+    res.json({ success: true, message: 'Приглашение отправлено' })
   } catch (e) { next(e) }
 })
 
