@@ -40,7 +40,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
   const [contextMenu, setContextMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
   const [pinVersion, setPinVersion] = useState(0)
-  const isAdmin = user?.username === 'cocoduckadm'
+  const isAdmin = user?.adminCode === (import.meta.env.VITE_ADMIN_SECRET || 'cocoduck_admin_2026')
 
 
 

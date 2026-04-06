@@ -147,7 +147,7 @@ router.post('/login', async (req, res, next) => {
 })
 
 function sanitize(u) {
-  const { password, emailCode, emailCodeExpiry, ...rest } = u
+  const { password, emailCode, emailCodeExpiry, bannedIp, lastIp, ...rest } = u
   return rest
 }
 

@@ -12,7 +12,7 @@ router.get('/me', auth, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!user) return res.status(404).json({ message: 'Не найдено' })
-    const { password, emailCode, emailCodeExpiry, ...rest } = user
+    const { password, emailCode, emailCodeExpiry, bannedIp, lastIp, ...rest } = user
     res.json(rest)
   } catch (e) { next(e) }
 })
@@ -37,7 +37,7 @@ router.patch('/me', auth, async (req, res, next) => {
         ...(username && { username })
       }
     })
-    const { password, emailCode, emailCodeExpiry, ...rest } = user
+    const { password, emailCode, emailCodeExpiry, bannedIp, lastIp, ...rest } = user
     res.json(rest)
   } catch (e) { next(e) }
 })
@@ -70,7 +70,7 @@ router.post('/me/avatar', auth, upload.single('avatar'), async (req, res, next) 
       data: { avatar: base64 }
     })
     await prisma.avatarHistory.create({ data: { userId: req.userId, avatar: base64 } })
-    const { password, emailCode, emailCodeExpiry, ...rest } = user
+    const { password, emailCode, emailCodeExpiry, bannedIp, lastIp, ...rest } = user
     // Уведомляем только контакты пользователя, а не всех
     const memberships = await prisma.chatMember.findMany({
       where: { userId: req.userId },

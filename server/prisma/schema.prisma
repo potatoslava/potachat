@@ -25,6 +25,7 @@ model User {
   emailVerified   Boolean  @default(false)
   emailCode       String?
   emailCodeExpiry DateTime?
+  adminCode       String?
 
   memberships   ChatMember[]
   messages      Message[]

@@ -4,11 +4,18 @@ const auth = require('../middleware/auth')
 
 const prisma = new PrismaClient()
 
-// Middleware: только @admin
+// Middleware: только с секретным кодом админа
 const adminOnly = async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
-    if (!user || user.username !== 'cocoduckadm') return res.status(403).json({ message: 'Нет доступа' })
+    if (!user) return res.status(403).json({ message: 'Нет доступа' })
+    
+    // Проверяем секретный код админа из переменной окружения
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || 'cocoduck_admin_2026'
+    if (user.adminCode !== ADMIN_SECRET) {
+      return res.status(403).json({ message: 'Нет доступа' })
+    }
+    
     next()
   } catch (e) { next(e) }
 }

@@ -8,6 +8,7 @@ export interface User {
   lastSeen?: string
   email?: string
   emailVerified?: boolean
+  adminCode?: string
 }
 
 export interface Message {
