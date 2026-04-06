@@ -4,6 +4,8 @@ import { useChatStore } from '../store/chatStore'
 
 import { useAuthStore } from '../store/authStore'
 
+import { socket } from '../lib/socket'
+
 import api from '../lib/api'
 
 import type { Chat } from '../types'
@@ -62,7 +64,23 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
       .catch(() => {})
   }, [])
 
-
+  useEffect(() => {
+    const onNewInvite = () => {
+      setInviteCount(c => c + 1)
+    }
+    
+    const onInviteCancelled = () => {
+      setInviteCount(c => Math.max(0, c - 1))
+    }
+    
+    socket.on('group:invite', onNewInvite)
+    socket.on('group:invite_cancelled', onInviteCancelled)
+    
+    return () => {
+      socket.off('group:invite', onNewInvite)
+      socket.off('group:invite_cancelled', onInviteCancelled)
+    }
+  }, [])
 
   useEffect(() => {
 

@@ -101,7 +101,14 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       if (msg.chatId === useChatStore.getState().activeChat?.id) editMessage(msg.chatId, msg)
     }
     const onDelete = ({ id, chatId }: { id: string; chatId: string }) => {
-      if (chatId === useChatStore.getState().activeChat?.id) deleteMessage(chatId, id)
+      if (chatId === useChatStore.getState().activeChat?.id) {
+        deleteMessage(chatId, id)
+        // Если удалили закреплённое сообщение, сбрасываем его
+        if (pinnedMessageId === id) {
+          setPinnedMessageId(null)
+          setPinnedMessage(null)
+        }
+      }
     }
 
     const onChatUpdate = (data: any) => {
@@ -649,6 +656,15 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
         </div>
       )}
       <div className="relative max-w-xs lg:max-w-md xl:max-w-lg">
+
+        {/* Иконка reply при свайпе */}
+        {swipeX > 0 && (
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: Math.min(swipeX / 40, 1) }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </div>
+        )}
 
         {/* Кнопки действий */}
         {showActions && (

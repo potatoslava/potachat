@@ -11,6 +11,7 @@
 :root {
   --bg-main: #0E1621;
   --bg-sidebar: #17212B;
+  --bg-sidebar-hover: #202E3A;
   --bg-header: #17212B;
   --bg-chat: #0E1621;
   --bg-input: #17212B;
@@ -24,6 +25,7 @@
 [data-theme="light"] {
   --bg-main: #FFFFFF;
   --bg-sidebar: #F0F2F5;
+  --bg-sidebar-hover: #E4E9F0;
   --bg-header: #FFFFFF;
   --bg-chat: #E4E9F0;
   --bg-input: #FFFFFF;
