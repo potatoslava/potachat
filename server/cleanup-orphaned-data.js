@@ -32,6 +32,7 @@ async function cleanupOrphanedData() {
     const avatarHistory = await prisma.avatarHistory.findMany({ select: { userId: true } })
     const supportTickets = await prisma.supportTicket.findMany({ select: { userId: true } })
     const messageReads = await prisma.messageRead.findMany({ select: { userId: true } })
+    const groupInvites = await prisma.groupInvite.findMany({ select: { inviterId: true, inviteeId: true } })
 
     // Собираем все уникальные userId
     const usedUserIds = new Set([
@@ -41,7 +42,9 @@ async function cleanupOrphanedData() {
       ...blocks.map(b => b.blockedId),
       ...avatarHistory.map(a => a.userId),
       ...supportTickets.map(t => t.userId),
-      ...messageReads.map(r => r.userId)
+      ...messageReads.map(r => r.userId),
+      ...groupInvites.map(i => i.inviterId),
+      ...groupInvites.map(i => i.inviteeId)
     ])
 
     console.log(`📊 Найдено ${usedUserIds.size} уникальных userId в связанных таблицах`)
@@ -110,6 +113,18 @@ async function cleanupOrphanedData() {
     })
     console.log(`🗑️  Удалено ${deletedReads.count} записей из MessageRead`)
     deletedCount += deletedReads.count
+
+    // GroupInvite
+    const deletedInvites = await prisma.groupInvite.deleteMany({
+      where: {
+        OR: [
+          { inviterId: { in: orphanedUserIds } },
+          { inviteeId: { in: orphanedUserIds } }
+        ]
+      }
+    })
+    console.log(`🗑️  Удалено ${deletedInvites.count} записей из GroupInvite`)
+    deletedCount += deletedInvites.count
 
     // 4. Удаляем пустые чаты (без участников)
     const emptyChats = await prisma.chat.findMany({
