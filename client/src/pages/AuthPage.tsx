@@ -126,7 +126,7 @@ export default function AuthPage() {
             <img src="/logo.png" className="w-full h-full object-cover" alt="CocoDack" />
           </div>
           <h1 className="text-2xl font-bold text-white">CocoDack</h1>
-          <p className="text-muted text-sm mt-1">Быстрый и безопасный мессенджер</p>
+          <p className="text-muted text-sm mt-1">Океанический мессенджер</p>
         </div>
 
         <div className="bg-sidebar rounded-2xl p-6 shadow-xl">
