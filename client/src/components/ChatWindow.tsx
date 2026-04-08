@@ -912,9 +912,6 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         )}
       </div>
     </div>
-  </>
-  )
-}
     {showGroupInfo && activeChat && (
       <GroupInfoModal chat={activeChat} onClose={() => setShowGroupInfo(false)} />
     )}
