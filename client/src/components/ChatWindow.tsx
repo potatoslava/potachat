@@ -10,6 +10,7 @@ import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
 import AvatarViewer from './AvatarViewer'
 import GroupInfoModal from './GroupInfoModal'
+import UserProfileModal from './UserProfileModal'
 
 export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const { activeChat, messages, addMessage, setMessages, updateLastMessage, editMessage, deleteMessage, onlineUsers, lastSeenUsers, typingUsers, setTyping } = useChatStore()
@@ -41,6 +42,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [mediaFilter, setMediaFilter] = useState<'all' | 'image' | 'video' | 'file'>('all')
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
+  const [showUserProfile, setShowUserProfile] = useState<string | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -735,6 +737,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                 deleteMessage(chatId, msg.id)
               } catch { /* сообщение не удалится, но не упадёт */ }
             }}
+            onAvatarClick={(userId) => setShowUserProfile(userId)}
           />
         ))}
         <div ref={bottomRef} />
@@ -920,6 +923,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     )}
     {showGroupInfo && activeChat && (
       <GroupInfoModal chat={activeChat} onClose={() => setShowGroupInfo(false)} />
+    )}
+    {showUserProfile && (
+      <UserProfileModal userId={showUserProfile} onClose={() => setShowUserProfile(null)} />
     )}
     {forwardMsg && (
       <ForwardModal
@@ -1116,11 +1122,12 @@ function VoiceMessagePlayer({ audioUrl }: { audioUrl: string }) {
   )
 }
 
-function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSelect, onReply, onEdit, onDelete, onImageClick, onForward }: {
+function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSelect, onReply, onEdit, onDelete, onImageClick, onForward, onAvatarClick }: {
   msg: Message; isOwn: boolean; showAvatar: boolean
   selectionMode?: boolean; isSelected?: boolean; onSelect?: (id: string) => void
   onReply: () => void; onEdit: (text: string) => void; onDelete: () => void
   onImageClick: (url: string) => void; onForward: (msg: Message) => void
+  onAvatarClick?: (userId: string) => void
 }) {
   const { activeChat } = useChatStore()
   const isImage = msg.fileType === 'image'
@@ -1223,7 +1230,9 @@ function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSe
         </button>
       )}
       {!isOwn && (
-        <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+        <div 
+          onClick={() => msg.sender?.id && onAvatarClick?.(msg.sender.id)}
+          className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
           {msg.sender?.avatar && (msg.sender.avatar.startsWith('data:') || msg.sender.avatar.startsWith('http'))
             ? <img src={msg.sender.avatar} className="w-full h-full object-cover" alt="" />
             : msg.sender?.displayName?.[0]?.toUpperCase()
