@@ -150,9 +150,9 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
     <div className="w-full md:w-80 flex-shrink-0 bg-sidebar flex flex-col border-r border-border relative" style={{ height: '100dvh' }}>
 
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border pt-safe">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border pt-safe">
 
-        <div className="relative menu-anchor">
+        <div className="relative menu-anchor flex-shrink-0">
 
           <button onClick={() => setShowMenu(v => !v)}>
 
@@ -216,11 +216,11 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
         </div>
 
-        <div className="flex-1 bg-chat rounded-xl px-3 py-2 flex items-center gap-2">
+        <div className="flex-1 min-w-0 bg-chat rounded-xl px-3 py-2 flex items-center gap-2">
 
           {isSearching ? (
 
-            <button onClick={() => { setSearch(''); setSearchFocused(false) }} className="text-primary">
+            <button onClick={() => { setSearch(''); setSearchFocused(false) }} className="text-primary flex-shrink-0">
 
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
 
@@ -228,36 +228,36 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
           ) : (
 
-            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <svg className="w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
 
           )}
 
-          <input value={search} onChange={(e) => setSearch(e.target.value)} onFocus={() => setSearchFocused(true)} placeholder="Поиск" className="bg-transparent text-sm text-white placeholder-muted focus:outline-none flex-1" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} onFocus={() => setSearchFocused(true)} placeholder="Поиск" className="bg-transparent text-sm text-white placeholder-muted focus:outline-none flex-1 min-w-0" />
 
-          {search && <button onClick={() => setSearch('')} className="text-muted hover:text-white"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
+          {search && <button onClick={() => setSearch('')} className="text-muted hover:text-white flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
 
         </div>
 
-        <button onClick={() => setShowInvites(true)} className="relative w-9 h-9 rounded-full bg-chat hover:bg-sidebar-hover flex items-center justify-center transition">
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button onClick={() => setShowInvites(true)} className="relative w-8 h-8 rounded-full bg-chat hover:bg-sidebar-hover flex items-center justify-center transition flex-shrink-0">
+          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
           {inviteCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-              {inviteCount > 9 ? '9+' : inviteCount}
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold text-[10px]">
+              {inviteCount > 9 ? '9' : inviteCount}
             </span>
           )}
         </button>
 
-        <button onClick={() => setShowFolders(v => !v)} className={`w-9 h-9 rounded-full flex items-center justify-center transition ${showFolders ? 'bg-primary text-white' : 'bg-chat hover:bg-sidebar-hover text-white'}`}>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button onClick={() => setShowFolders(v => !v)} className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 ${showFolders ? 'bg-primary text-white' : 'bg-chat hover:bg-sidebar-hover text-white'}`}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
         </button>
 
-        <button onClick={() => setShowNewChat(true)} className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition">
+        <button onClick={() => setShowNewChat(true)} className="w-8 h-8 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition flex-shrink-0">
 
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
 
         </button>
 
