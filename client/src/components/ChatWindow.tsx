@@ -380,27 +380,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         }
       }
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+      mediaRecorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop())
-        
-        // Отправляем голосовое сообщение
-        const currentChat = useChatStore.getState().activeChat
-        if (!currentChat) return
-        
-        setUploading(true)
-        const form = new FormData()
-        form.append('file', audioBlob, 'voice.webm')
-        try {
-          const { data } = await api.post(`/chats/${currentChat.id}/messages/file`, form)
-          addMessage(currentChat.id, data)
-          updateLastMessage(currentChat.id, data)
-        } catch (e: any) {
-          setSendError(e.response?.data?.message || 'Ошибка отправки голосового')
-          setTimeout(() => setSendError(''), 3000)
-        } finally {
-          setUploading(false)
-        }
       }
 
       mediaRecorder.start()
@@ -424,6 +405,35 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         clearInterval(recordingTimerRef.current)
         recordingTimerRef.current = null
       }
+    }
+  }
+
+  const sendVoiceMessage = async () => {
+    if (!isRecording || audioChunksRef.current.length === 0) return
+    
+    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+    const currentChat = useChatStore.getState().activeChat
+    if (!currentChat) return
+    
+    setIsRecording(false)
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current)
+      recordingTimerRef.current = null
+    }
+    
+    setUploading(true)
+    const form = new FormData()
+    form.append('file', audioBlob, 'voice.webm')
+    try {
+      const { data } = await api.post(`/chats/${currentChat.id}/messages/file`, form)
+      addMessage(currentChat.id, data)
+      updateLastMessage(currentChat.id, data)
+      audioChunksRef.current = []
+    } catch (e: any) {
+      setSendError(e.response?.data?.message || 'Ошибка отправки голосового')
+      setTimeout(() => setSendError(''), 3000)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -826,12 +836,17 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-red-400 flex-shrink-0">← Отпустите для отправки</span>
                   </div>
                   <button onClick={cancelRecording}
                     className="w-11 h-11 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition flex-shrink-0 border border-red-500/40">
                     <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                  <button onClick={sendVoiceMessage} disabled={uploading}
+                    className="w-11 h-11 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                     </svg>
                   </button>
                 </>
@@ -860,10 +875,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                       </svg>
                     </button>
                   ) : (
-                    <button onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={cancelRecording}
-                      onTouchStart={startRecording} onTouchEnd={stopRecording}
-                      className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition-all flex-shrink-0 active:scale-110 active:bg-red-500 group">
-                      <svg className="w-5 h-5 text-white transition-transform group-active:scale-125" fill="currentColor" viewBox="0 0 24 24">
+                    <button onClick={isRecording ? stopRecording : startRecording}
+                      className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition-all flex-shrink-0 active:scale-110 group">
+                      <svg className="w-5 h-5 text-white transition-transform" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                       </svg>
