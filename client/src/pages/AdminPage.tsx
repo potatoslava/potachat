@@ -283,7 +283,7 @@ export default function AdminPage({ onClose }: { onClose: () => void }) {
                   {cleanupResult}
                 </p>
               )}
-              <button onClick={() => setCleanupConfirm(true)} disabled={cleanupLoading}
+              <button onClick={() => setShowCleanupConfirm(true)} disabled={cleanupLoading}
                 className="w-full py-2 rounded-xl bg-yellow-500/20 text-yellow-400 text-sm font-medium hover:bg-yellow-500/30 transition disabled:opacity-50">
                 {cleanupLoading ? 'Очистка...' : '🧹 Очистить потерянные записи'}
               </button>
