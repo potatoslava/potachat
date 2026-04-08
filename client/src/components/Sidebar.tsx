@@ -48,7 +48,7 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
   const [showArchive, setShowArchive] = useState(false)
   const [showFolders, setShowFolders] = useState(false)
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
-  const isAdmin = user?.adminCode === 'cocoduck_admin_2026'
+  const isAdmin = user?.username === 'cocoduckadm'
 
   const [showInvites, setShowInvites] = useState(false)
 
