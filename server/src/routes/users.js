@@ -204,4 +204,47 @@ router.post('/support', auth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// Установить кастомную подпись для пользователя
+router.put('/label/:userId', auth, async (req, res, next) => {
+  try {
+    const { label } = req.body
+    if (!label || !label.trim()) {
+      // Удаляем подпись если пустая
+      await prisma.customLabel.deleteMany({
+        where: { userId: req.userId, targetUserId: req.params.userId }
+      })
+      return res.json({ success: true, label: null })
+    }
+    if (label.length > 64) return res.status(400).json({ message: 'Подпись слишком длинная (максимум 64 символа)' })
+    
+    const customLabel = await prisma.customLabel.upsert({
+      where: { userId_targetUserId: { userId: req.userId, targetUserId: req.params.userId } },
+      create: { userId: req.userId, targetUserId: req.params.userId, label: label.trim() },
+      update: { label: label.trim() }
+    })
+    res.json(customLabel)
+  } catch (e) { next(e) }
+})
+
+// Получить все мои кастомные подписи
+router.get('/labels', auth, async (req, res, next) => {
+  try {
+    const labels = await prisma.customLabel.findMany({
+      where: { userId: req.userId },
+      include: { targetUser: { select: { id: true, username: true, displayName: true, avatar: true } } }
+    })
+    res.json(labels)
+  } catch (e) { next(e) }
+})
+
+// Получить подпись для конкретного пользователя
+router.get('/label/:userId', auth, async (req, res, next) => {
+  try {
+    const label = await prisma.customLabel.findUnique({
+      where: { userId_targetUserId: { userId: req.userId, targetUserId: req.params.userId } }
+    })
+    res.json(label || { label: null })
+  } catch (e) { next(e) }
+})
+
 module.exports = router

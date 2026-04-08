@@ -36,6 +36,21 @@ model User {
   messageReads  MessageRead[]
   sentInvites   GroupInvite[] @relation("inviter")
   receivedInvites GroupInvite[] @relation("invitee")
+  customLabels  CustomLabel[] @relation("labeler")
+  labeledBy     CustomLabel[] @relation("labeled")
+}
+
+model CustomLabel {
+  id           String   @id @default(uuid())
+  userId       String
+  targetUserId String
+  label        String
+  createdAt    DateTime @default(now())
+
+  user       User @relation("labeler", fields: [userId], references: [id], onDelete: Cascade)
+  targetUser User @relation("labeled", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetUserId])
 }
 
 model Chat {

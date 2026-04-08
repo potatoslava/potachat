@@ -61,6 +61,9 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
       .then(({ data }) => setChats(data))
       .catch(() => {})
     
+    // Загружаем кастомные подписи
+    useChatStore.getState().loadCustomLabels()
+    
     // Загружаем количество приглашений
     api.get('/invites')
       .then(({ data }) => setInviteCount(data.length))

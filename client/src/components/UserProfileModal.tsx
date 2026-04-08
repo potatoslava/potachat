@@ -20,10 +20,14 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
   const [loading, setLoading] = useState(true)
   const [isBlocked, setIsBlocked] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [customLabel, setCustomLabel] = useState('')
+  const [editingLabel, setEditingLabel] = useState(false)
+  const [labelSaving, setLabelSaving] = useState(false)
 
   useEffect(() => {
     loadProfile()
     checkBlocked()
+    loadCustomLabel()
   }, [userId])
 
   const loadProfile = async () => {
@@ -43,6 +47,26 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
       const { data } = await api.get('/users/blocked')
       setIsBlocked(data.some((u: any) => u.id === userId))
     } catch {}
+  }
+
+  const loadCustomLabel = async () => {
+    try {
+      const { data } = await api.get(`/users/label/${userId}`)
+      setCustomLabel(data.label || '')
+    } catch {}
+  }
+
+  const saveCustomLabel = async () => {
+    setLabelSaving(true)
+    try {
+      await api.put(`/users/label/${userId}`, { label: customLabel })
+      useChatStore.getState().setCustomLabel(userId, customLabel)
+      setEditingLabel(false)
+    } catch (e: any) {
+      console.error('Ошибка сохранения подписи:', e.response?.data?.message || 'Ошибка')
+    } finally {
+      setLabelSaving(false)
+    }
   }
 
   const openChat = async () => {
@@ -127,6 +151,44 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
           <div className="mb-4 p-3 bg-chat rounded-xl">
             <p className="text-xs text-muted mb-1">О себе</p>
             <p className="text-sm text-white whitespace-pre-wrap">{profile.bio}</p>
+          </div>
+        )}
+
+        {!isMe && (
+          <div className="mb-4 p-3 bg-chat rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted">Моя подпись</p>
+              {!editingLabel && (
+                <button onClick={() => setEditingLabel(true)} className="text-xs text-primary hover:text-primary-dark">
+                  {customLabel ? 'Изменить' : 'Добавить'}
+                </button>
+              )}
+            </div>
+            {editingLabel ? (
+              <div className="space-y-2">
+                <input
+                  autoFocus
+                  value={customLabel}
+                  onChange={e => setCustomLabel(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveCustomLabel()}
+                  placeholder="Например: Коллега, Друг..."
+                  maxLength={64}
+                  className="w-full bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-primary"
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveCustomLabel} disabled={labelSaving}
+                    className="flex-1 py-1.5 rounded-lg bg-primary text-white text-xs hover:bg-primary-dark transition disabled:opacity-50">
+                    {labelSaving ? 'Сохранение...' : 'Сохранить'}
+                  </button>
+                  <button onClick={() => { setEditingLabel(false); loadCustomLabel() }}
+                    className="flex-1 py-1.5 rounded-lg bg-sidebar-hover text-muted text-xs hover:text-white transition">
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-white">{customLabel || <span className="text-muted italic">Не установлена</span>}</p>
+            )}
           </div>
         )}
 

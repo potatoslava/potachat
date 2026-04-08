@@ -9,6 +9,7 @@ interface ChatState {
   onlineUsers: Record<string, boolean>
   lastSeenUsers: Record<string, string>
   typingUsers: Record<string, string[]> // chatId -> [displayName, ...]
+  customLabels: Record<string, string> // userId -> label
   setChats: (chats: Chat[]) => void
   setActiveChat: (chat: Chat | null) => void
   addMessage: (chatId: string, message: Message) => void
@@ -22,6 +23,8 @@ interface ChatState {
   incrementUnread: (chatId: string, message: Message) => void
   clearUnread: (chatId: string) => void
   setTyping: (chatId: string, displayName: string, typing: boolean) => void
+  setCustomLabel: (userId: string, label: string) => void
+  loadCustomLabels: () => Promise<void>
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -31,6 +34,7 @@ export const useChatStore = create<ChatState>((set) => ({
   onlineUsers: {},
   lastSeenUsers: {},
   typingUsers: {},
+  customLabels: {},
   setChats: (chats) => set({ chats }),
   setActiveChat: (chat) => set({ activeChat: chat }),
   addMessage: (chatId, message) =>
@@ -159,4 +163,19 @@ export const useChatStore = create<ChatState>((set) => ({
         : current.filter(n => n !== displayName)
       return { typingUsers: { ...state.typingUsers, [chatId]: updated } }
     }),
+  setCustomLabel: (userId, label) =>
+    set((state) => ({
+      customLabels: { ...state.customLabels, [userId]: label }
+    })),
+  loadCustomLabels: async () => {
+    try {
+      const api = (await import('../lib/api')).default
+      const { data } = await api.get('/users/labels')
+      const labels: Record<string, string> = {}
+      data.forEach((item: any) => {
+        labels[item.targetUserId] = item.label
+      })
+      set({ customLabels: labels })
+    } catch {}
+  },
 }))

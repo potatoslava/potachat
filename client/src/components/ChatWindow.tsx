@@ -536,7 +536,13 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           })()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm">{activeChat.name}</p>          {(() => {
+          <p className="font-semibold text-sm">
+            {activeChat.type === 'private' ? (() => {
+              const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
+              const customLabel = otherId ? useChatStore.getState().customLabels[otherId] : null
+              return customLabel || activeChat.name
+            })() : activeChat.name}
+          </p>          {(() => {
             const typing = typingUsers[activeChat.id] || []
             if (typing.length > 0) {
               const names = typing.slice(0, 2).join(', ')
