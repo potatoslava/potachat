@@ -16,6 +16,7 @@ export default {
         border: 'var(--border-color)',
         muted: 'var(--text-muted)',
         'text-primary': 'var(--text-primary)',
+        white: 'var(--text-primary)', // Переопределяем white для поддержки тем
       }
     }
   },
