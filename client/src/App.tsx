@@ -8,8 +8,17 @@ import Sidebar from './components/Sidebar'
 import ChatWindow from './components/ChatWindow'
 import AdminPage from './pages/AdminPage'
 import SettingsPage from './pages/SettingsPage'
+import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  )
+}
+
+function AppContent() {
   const { user, token } = useAuthStore()
   const { activeChat, setActiveChat } = useChatStore()
   const setUserOnline = useChatStore((s) => s.setUserOnline)
@@ -185,17 +194,19 @@ export default function App() {
   const hasRight = !!activeChat || showAdmin || showSettings
 
   return (
-    <div className="flex overflow-hidden" style={{ height: '100dvh' }}>
-      <div className={`${hasRight ? 'hidden md:flex' : 'flex'} w-full md:w-80`}>
-        <Sidebar onOpenAdmin={openAdmin} showAdmin={showAdmin} onOpenSettings={openSettings} showSettings={showSettings} theme={theme} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
-      </div>
-      <div className={`${hasRight ? 'flex' : 'hidden md:flex'} flex-1`}>
-        {showAdmin
-          ? <AdminPage onClose={closeAdmin} />
-          : showSettings
-          ? <SettingsPage onClose={closeSettings} />
-          : <ChatWindow onBack={() => setActiveChat(null)} />
-        }
+    <div className="flex items-center justify-center p-4 md:p-6" style={{ height: '100vh', background: '#071521' }}>
+      <div className="flex overflow-hidden rounded-[28px] shadow-[0_25px_45px_-12px_rgba(0,0,0,0.6),0_0_0_1px_rgba(72,181,255,0.2)] transition-shadow duration-300 hover:shadow-[0_30px_50px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(72,181,255,0.3)]" style={{ width: '1300px', maxWidth: '98vw', height: '90vh', background: '#0C1C2C' }}>
+        <div className={`${hasRight ? 'hidden md:flex' : 'flex'} w-full md:w-80`}>
+          <Sidebar onOpenAdmin={openAdmin} showAdmin={showAdmin} onOpenSettings={openSettings} showSettings={showSettings} theme={theme} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
+        </div>
+        <div className={`${hasRight ? 'flex' : 'hidden md:flex'} flex-1`}>
+          {showAdmin
+            ? <AdminPage onClose={closeAdmin} />
+            : showSettings
+            ? <SettingsPage onClose={closeSettings} />
+            : <ChatWindow onBack={() => setActiveChat(null)} />
+          }
+        </div>
       </div>
     </div>
   )

@@ -47,6 +47,7 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
   const token = useAuthStore(s => s.token)!
   const { setChats } = useChatStore()
   const [showQR, setShowQR] = useState(false)
+  const [msg, setMsg] = useState('')
 
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -103,6 +104,8 @@ function MainSection({ onNavigate, onClose }: { onNavigate: (s: Section) => void
         <MenuItem icon="🌐" label={t('language')} onClick={() => onNavigate('language')} border />
         <MenuItem icon="📷" label="Мой QR-код" onClick={() => setShowQR(true)} border />
       </div>
+
+      {msg && <p className="text-xs text-center text-red-400 bg-sidebar rounded-xl p-2">{msg}</p>}
 
       <div className="bg-sidebar rounded-2xl overflow-hidden">
         <MenuItem icon="🚪" label={t('logout')} onClick={logout} danger />

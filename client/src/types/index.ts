@@ -23,6 +23,7 @@ export interface Message {
   createdAt: string
   read: boolean
   edited?: boolean
+  reactions?: Record<string, string[]> // emoji -> [userId, ...]
   replyTo?: {
     id: string
     text?: string

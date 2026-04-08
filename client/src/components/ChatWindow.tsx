@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import React from 'react'
 import { useChatStore } from '../store/chatStore'
 import { useAuthStore } from '../store/authStore'
 import { socket } from '../lib/socket'
@@ -29,11 +30,25 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [forwardMsg, setForwardMsg] = useState<Message | null>(null)
   const [pinnedMessageId, setPinnedMessageId] = useState<string | null>(null)
   const [pinnedMessage, setPinnedMessage] = useState<Message | null>(null)
+  const [showFormatting, setShowFormatting] = useState(false)
+  const [silentMode, setSilentMode] = useState(false)
+  const [showSchedule, setShowSchedule] = useState(false)
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set())
+  const [selfDestruct, setSelfDestruct] = useState<number>(0) // 0 = off, seconds otherwise
+  const [showMediaFilter, setShowMediaFilter] = useState(false)
+  const [mediaFilter, setMediaFilter] = useState<'all' | 'image' | 'video' | 'file'>('all')
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : []
+  
+  // Фильтрация по типу медиа
+  const filteredMessages = mediaFilter === 'all' 
+    ? chatMessages 
+    : chatMessages.filter(m => m.fileType === mediaFilter)
 
   // Сохраняем черновик при изменении текста
   useEffect(() => {
@@ -256,18 +271,79 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     socket.emit('typing:stop', { chatId: currentChat.id })
     try {
-      const { data } = await api.post(`/chats/${currentChat.id}/messages`, { text, replyToId: replyTo?.id })
-      addMessage(currentChat.id, data)
-      updateLastMessage(currentChat.id, data)
+      const payload: any = { 
+        text, 
+        replyToId: replyTo?.id,
+        silent: silentMode 
+      }
+      
+      // Если выбрано время отправки
+      if (scheduleTime) {
+        payload.scheduledFor = new Date(scheduleTime).toISOString()
+      }
+      
+      // Если включено самоуничтожение
+      if (selfDestruct > 0) {
+        payload.selfDestructSeconds = selfDestruct
+      }
+      
+      const { data } = await api.post(`/chats/${currentChat.id}/messages`, payload)
+      
+      if (scheduleTime) {
+        // Показываем уведомление об отложенном сообщении
+        setSendError('✓ Сообщение запланировано')
+        setTimeout(() => setSendError(''), 2000)
+      } else {
+        addMessage(currentChat.id, data)
+        updateLastMessage(currentChat.id, data)
+      }
+      
       setText('')
       localStorage.removeItem(`draft:${currentChat.id}`)
       setReplyTo(null)
+      setSilentMode(false)
+      setScheduleTime('')
+      setShowSchedule(false)
+      setSelfDestruct(0)
     } catch (e: any) {
       setSendError(e.response?.data?.message || '')
       setTimeout(() => setSendError(''), 2000)
     } finally {
       setSending(false)
     }
+  }
+
+  const applyFormatting = (type: 'bold' | 'italic' | 'mono') => {
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    if (!textarea) return
+    
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = text.substring(start, end)
+    
+    if (!selectedText) return
+    
+    let formatted = ''
+    switch (type) {
+      case 'bold':
+        formatted = `**${selectedText}**`
+        break
+      case 'italic':
+        formatted = `*${selectedText}*`
+        break
+      case 'mono':
+        formatted = `\`${selectedText}\``
+        break
+    }
+    
+    const newText = text.substring(0, start) + formatted + text.substring(end)
+    setText(newText)
+    
+    // Восстанавливаем фокус
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + formatted.length, start + formatted.length)
+    }, 0)
   }
 
   const onDrop = useCallback(async (files: File[]) => {
@@ -395,6 +471,12 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
+        <button onClick={() => setShowMediaFilter(v => !v)}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 ${showMediaFilter || mediaFilter !== 'all' ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </button>
         <button onClick={async () => {
           if (!activeChat) return
           try {
@@ -405,6 +487,12 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           className="w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 text-muted hover:text-white">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+        <button onClick={() => { setSelectionMode(v => !v); setSelectedMessages(new Set()) }}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 ${selectionMode ? 'bg-primary text-white' : 'text-muted hover:text-white'}`}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
           </svg>
         </button>
       </div>
@@ -473,14 +561,44 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         </div>
       )}
 
+      {/* Media filter */}
+      {showMediaFilter && (
+        <div className="px-4 py-2 bg-header border-b border-border flex gap-2">
+          <button onClick={() => { setMediaFilter('all'); setShowMediaFilter(false) }}
+            className={`px-3 py-1.5 rounded-lg text-xs transition ${mediaFilter === 'all' ? 'bg-primary text-white' : 'bg-chat text-muted hover:text-white'}`}>
+            Все
+          </button>
+          <button onClick={() => { setMediaFilter('image'); setShowMediaFilter(false) }}
+            className={`px-3 py-1.5 rounded-lg text-xs transition ${mediaFilter === 'image' ? 'bg-primary text-white' : 'bg-chat text-muted hover:text-white'}`}>
+            Фото
+          </button>
+          <button onClick={() => { setMediaFilter('video'); setShowMediaFilter(false) }}
+            className={`px-3 py-1.5 rounded-lg text-xs transition ${mediaFilter === 'video' ? 'bg-primary text-white' : 'bg-chat text-muted hover:text-white'}`}>
+            Видео
+          </button>
+          <button onClick={() => { setMediaFilter('file'); setShowMediaFilter(false) }}
+            className={`px-3 py-1.5 rounded-lg text-xs transition ${mediaFilter === 'file' ? 'bg-primary text-white' : 'bg-chat text-muted hover:text-white'}`}>
+            Файлы
+          </button>
+        </div>
+      )}
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {chatMessages.map((msg, i) => (
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 relative messages-pattern">
+        {filteredMessages.map((msg, i) => (
           <MessageBubble
             key={msg.id}
             msg={msg}
             isOwn={msg.senderId === user?.id}
-            showAvatar={i === 0 || chatMessages[i - 1]?.senderId !== msg.senderId}
+            showAvatar={i === 0 || filteredMessages[i - 1]?.senderId !== msg.senderId}
+            selectionMode={selectionMode}
+            isSelected={selectedMessages.has(msg.id)}
+            onSelect={(id) => {
+              const newSet = new Set(selectedMessages)
+              if (newSet.has(id)) newSet.delete(id)
+              else newSet.add(id)
+              setSelectedMessages(newSet)
+            }}
             onReply={() => setReplyTo(msg)}
             onForward={(m) => setForwardMsg(m)}
             onImageClick={(url) => { setLightboxUrl(url); setLightboxScale(1) }}
@@ -503,7 +621,40 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           />
         ))}
         <div ref={bottomRef} />
+        
+        {/* Scroll to bottom button */}
+        <button onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-primary shadow-lg flex items-center justify-center text-white hover:bg-primary-dark transition opacity-0 hover:opacity-100 focus:opacity-100">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
       </div>
+
+      {/* Selection toolbar */}
+      {selectionMode && selectedMessages.size > 0 && (
+        <div className="px-4 py-2 bg-primary/20 border-t border-primary flex items-center gap-3">
+          <span className="text-sm text-white">{selectedMessages.size} выбрано</span>
+          <div className="flex-1" />
+          <button onClick={async () => {
+            if (!activeChat) return
+            for (const msgId of selectedMessages) {
+              try {
+                await api.delete(`/chats/${activeChat.id}/messages/${msgId}`)
+                deleteMessage(activeChat.id, msgId)
+              } catch {}
+            }
+            setSelectedMessages(new Set())
+            setSelectionMode(false)
+          }} className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition">
+            Удалить
+          </button>
+          <button onClick={() => { setSelectedMessages(new Set()); setSelectionMode(false) }}
+            className="px-3 py-1.5 bg-sidebar-hover text-white rounded-lg text-sm hover:bg-chat transition">
+            Отмена
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="px-4 py-3 bg-header border-t border-border flex-shrink-0">
@@ -527,6 +678,40 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                 </button>
               </div>
             )}
+            {showFormatting && (
+              <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-chat rounded-xl">
+                <button onClick={() => applyFormatting('bold')} 
+                  className="px-2 py-1 text-xs font-bold text-white bg-sidebar-hover hover:bg-primary rounded transition">
+                  Ж
+                </button>
+                <button onClick={() => applyFormatting('italic')} 
+                  className="px-2 py-1 text-xs italic text-white bg-sidebar-hover hover:bg-primary rounded transition">
+                  К
+                </button>
+                <button onClick={() => applyFormatting('mono')} 
+                  className="px-2 py-1 text-xs font-mono text-white bg-sidebar-hover hover:bg-primary rounded transition">
+                  Моно
+                </button>
+                <div className="flex-1" />
+                <button onClick={() => setShowFormatting(false)} className="text-muted hover:text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {showSchedule && (
+              <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-chat rounded-xl">
+                <input type="datetime-local" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="flex-1 bg-sidebar-hover border border-border rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-primary" />
+                <button onClick={() => { setShowSchedule(false); setScheduleTime('') }} className="text-muted hover:text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <label className="cursor-pointer text-muted hover:text-primary transition flex-shrink-0 pb-2">
                 <input type="file" className="hidden" onChange={(e) => e.target.files && onDrop(Array.from(e.target.files))} />
@@ -534,6 +719,43 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                 </svg>
               </label>
+              <button onClick={() => setShowFormatting(v => !v)}
+                className={`flex-shrink-0 pb-2 transition ${showFormatting ? 'text-primary' : 'text-muted hover:text-primary'}`}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+              </button>
+              <button onClick={() => setSilentMode(v => !v)}
+                className={`flex-shrink-0 pb-2 transition ${silentMode ? 'text-primary' : 'text-muted hover:text-primary'}`}
+                title={silentMode ? 'Тихое сообщение включено' : 'Отправить без уведомления'}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {silentMode ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  )}
+                </svg>
+              </button>
+              <button onClick={() => setShowSchedule(v => !v)}
+                className={`flex-shrink-0 pb-2 transition ${showSchedule || scheduleTime ? 'text-primary' : 'text-muted hover:text-primary'}`}
+                title="Отложить отправку">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              <button onClick={() => {
+                const options = [0, 5, 30, 60, 3600, 86400]
+                const labels = ['Выкл', '5 сек', '30 сек', '1 мин', '1 час', '1 день']
+                const current = options.indexOf(selfDestruct)
+                const next = (current + 1) % options.length
+                setSelfDestruct(options[next])
+              }}
+                className={`flex-shrink-0 pb-2 transition ${selfDestruct > 0 ? 'text-primary' : 'text-muted hover:text-primary'}`}
+                title={selfDestruct > 0 ? `Самоуничтожение: ${selfDestruct < 60 ? selfDestruct + ' сек' : selfDestruct < 3600 ? Math.floor(selfDestruct / 60) + ' мин' : Math.floor(selfDestruct / 3600) + ' ч'}` : 'Самоуничтожающееся сообщение'}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
               <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-end gap-2">
                 <textarea
                   value={text}
@@ -550,7 +772,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                 )}
               </div>
               <button onClick={send} disabled={!text.trim() || uploading || sending}
-                className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
+                className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0 animate-pulse-send hover:animate-none active:scale-95">
                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>
@@ -616,8 +838,53 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   )
 }
 
-function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onImageClick, onForward }: {
+function renderFormattedText(text: string) {
+  // Простой парсер для **жирный**, *курсив*, `моноширинный`
+  const parts: React.ReactNode[] = []
+  let currentIndex = 0
+  let key = 0
+  
+  // Регулярка для поиска форматирования
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g
+  let match
+  
+  while ((match = regex.exec(text)) !== null) {
+    // Добавляем текст до совпадения
+    if (match.index > currentIndex) {
+      parts.push(text.substring(currentIndex, match.index))
+    }
+    
+    const matched = match[0]
+    if (matched.startsWith('**') && matched.endsWith('**')) {
+      // Жирный
+      parts.push(<strong key={key++}>{matched.slice(2, -2)}</strong>)
+    } else if (matched.startsWith('*') && matched.endsWith('*')) {
+      // Курсив
+      parts.push(<em key={key++}>{matched.slice(1, -1)}</em>)
+    } else if (matched.startsWith('`') && matched.endsWith('`')) {
+      // Моноширинный
+      parts.push(<code key={key++} className="bg-black/30 px-1 rounded font-mono text-xs">{matched.slice(1, -1)}</code>)
+    }
+    
+    currentIndex = match.index + matched.length
+  }
+  
+  // Добавляем оставшийся текст
+  if (currentIndex < text.length) {
+    parts.push(text.substring(currentIndex))
+  }
+  
+  return parts.length > 0 ? parts : text
+}
+
+function extractLinks(text: string): string[] {
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  return text.match(urlRegex) || []
+}
+
+function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSelect, onReply, onEdit, onDelete, onImageClick, onForward }: {
   msg: Message; isOwn: boolean; showAvatar: boolean
+  selectionMode?: boolean; isSelected?: boolean; onSelect?: (id: string) => void
   onReply: () => void; onEdit: (text: string) => void; onDelete: () => void
   onImageClick: (url: string) => void; onForward: (msg: Message) => void
 }) {
@@ -630,8 +897,13 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
   const [editText, setEditText] = useState(msg.text || '')
   const [swipeX, setSwipeX] = useState(0)
   const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [lastTap, setLastTap] = useState<number>(0)
+  const [showReaction, setShowReaction] = useState(false)
+  const [showReactionPicker, setShowReactionPicker] = useState(false)
   
   const isAdminOrOwner = activeChat?.myRole === 'owner' || activeChat?.myRole === 'admin'
+
+  const quickReactions = ['❤️', '👍', '😂', '😮', '😢', '🔥', '👏']
 
   const submitEdit = () => {
     if (editText.trim() && editText !== msg.text) onEdit(editText.trim())
@@ -677,8 +949,45 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
     setTouchStart(null)
   }
 
+  const handleDoubleTap = () => {
+    const now = Date.now()
+    if (now - lastTap < 300) {
+      // Двойной тап - показываем реакцию
+      setShowReaction(true)
+      setTimeout(() => setShowReaction(false), 1500)
+      // Добавляем реакцию ❤️
+      addReaction('❤️')
+    }
+    setLastTap(now)
+  }
+
+  const addReaction = async (emoji: string) => {
+    if (!activeChat) return
+    try {
+      await api.post(`/chats/${activeChat.id}/messages/${msg.id}/react`, { emoji })
+      // Обновление произойдёт через socket
+    } catch {}
+  }
+
+  const copyText = () => {
+    if (msg.text) {
+      navigator.clipboard.writeText(msg.text)
+      setShowMenu(false)
+    }
+  }
+
   return (
     <div id={`msg-${msg.id}`} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
+      {selectionMode && (
+        <button onClick={() => onSelect?.(msg.id)}
+          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition ${isSelected ? 'bg-primary border-primary' : 'border-muted'}`}>
+          {isSelected && (
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+      )}
       {!isOwn && (
         <div className={`w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
           {msg.sender?.avatar && (msg.sender.avatar.startsWith('data:') || msg.sender.avatar.startsWith('http'))
@@ -722,6 +1031,12 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
             <div className="relative z-50">
               <button onClick={() => { onReply(); setShowMenu(false) }}
                 className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↩️ Ответить</button>
+              <button onClick={() => { setShowReactionPicker(true); setShowMenu(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">😊 Реакция</button>
+              {msg.text && (
+                <button onClick={copyText}
+                  className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">📋 Копировать</button>
+              )}
               <button onClick={() => { onForward(msg); setShowMenu(false) }}
                 className="w-full text-left px-3 py-2 text-sm text-white hover:bg-chat transition">↪️ Переслать</button>
               {isAdminOrOwner && activeChat?.type !== 'private' && (
@@ -740,15 +1055,36 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
           </div>
         )}
 
+        {showReactionPicker && (
+          <div className={`absolute bottom-8 ${isOwn ? 'right-0' : 'left-0'} bg-sidebar-hover rounded-xl shadow-xl z-50 p-2 border border-border`}>
+            <div className="fixed inset-0 z-40" onClick={() => setShowReactionPicker(false)} />
+            <div className="relative z-50 flex gap-1">
+              {quickReactions.map(emoji => (
+                <button key={emoji} onClick={() => { addReaction(emoji); setShowReactionPicker(false) }}
+                  className="w-8 h-8 rounded-lg hover:bg-chat transition text-xl flex items-center justify-center">
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div
-          onClick={() => setShowActions(v => !v)}
+          onClick={() => selectionMode ? onSelect?.(msg.id) : setShowActions(v => !v)}
           onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); setShowActions(false) }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchEnd={(e) => { handleTouchEnd(); handleDoubleTap() }}
           style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 ? 'transform 0.2s' : 'none' }}
-          className={`rounded-2xl px-3 py-2 cursor-pointer select-none ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'}`}
+          className={`rounded-2xl px-3 py-2 cursor-pointer select-none relative ${isOwn ? 'bg-chat-bubble-out rounded-br-sm' : 'bg-chat-bubble-in rounded-bl-sm'} ${isSelected ? 'ring-2 ring-primary' : ''}`}
         >
+          {/* Анимация реакции при двойном тапе */}
+          {showReaction && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <span className="text-5xl animate-ping">❤️</span>
+            </div>
+          )}
+
           {!isOwn && showAvatar && <p className="text-primary text-xs font-medium mb-1">{msg.sender?.displayName}</p>}
 
           {msg.replyTo && (
@@ -779,7 +1115,18 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
               <button onClick={() => setEditing(false)} className="text-muted text-xs">✕</button>
             </div>
           ) : (
-            msg.text && <p className="text-sm text-white whitespace-pre-wrap break-words">{msg.text}</p>
+            msg.text && (
+              <>
+                <p className="text-sm text-white whitespace-pre-wrap break-words">{renderFormattedText(msg.text)}</p>
+                {/* Предпросмотр ссылок */}
+                {extractLinks(msg.text).slice(0, 1).map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                    className="block mt-2 p-2 bg-black/20 rounded-lg text-xs text-primary hover:bg-black/30 transition truncate">
+                    🔗 {url}
+                  </a>
+                ))}
+              </>
+            )
           )}
 
           <p className={`text-xs mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-blue-300/60' : 'text-muted'}`}>
@@ -788,6 +1135,19 @@ function MessageBubble({ msg, isOwn, showAvatar, onReply, onEdit, onDelete, onIm
             {isOwn && <span>{msg.read ? '✓✓' : '✓'}</span>}
           </p>
         </div>
+
+        {/* Реакции */}
+        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : ''}`}>
+            {Object.entries(msg.reactions).map(([emoji, userIds]) => (
+              <button key={emoji} onClick={() => addReaction(emoji)}
+                className="px-1.5 py-0.5 bg-sidebar-hover rounded-full text-xs flex items-center gap-1 hover:bg-chat transition">
+                <span>{emoji}</span>
+                <span className="text-muted">{userIds.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

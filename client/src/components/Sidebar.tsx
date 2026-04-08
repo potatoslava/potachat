@@ -45,6 +45,9 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
   const [contextMenu, setContextMenu] = useState<{ chat: Chat; x: number; y: number } | null>(null)
   const [pinVersion, setPinVersion] = useState(0)
+  const [showArchive, setShowArchive] = useState(false)
+  const [showFolders, setShowFolders] = useState(false)
+  const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const isAdmin = user?.adminCode === 'cocoduck_admin_2026'
 
   const [showInvites, setShowInvites] = useState(false)
@@ -100,6 +103,18 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
   const isSearching = searchFocused && search.trim().length > 0
 
+  // Архивированные чаты
+  const archivedIds: string[] = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('archivedChats') || '[]') } catch { return [] }
+  }, [pinVersion])
+  
+  // Папки чатов
+  const folders: Record<string, string[]> = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('chatFolders') || '{}') } catch { return {} }
+  }, [pinVersion])
+  
+  const folderNames = Object.keys(folders)
+  
   // Закреплённые чаты наверху — pinVersion форсирует перерендер после изменения
   const pinnedIds: string[] = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('pinnedChats') || '[]') } catch { return [] }
@@ -107,6 +122,16 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
   }, [pinVersion])
 
   const filtered = chats
+    .filter((c) => !archivedIds.includes(c.id)) // Скрываем архивированные
+    .filter((c) => {
+      // Если выбрана папка, показываем только чаты из этой папки
+      if (activeFolder) {
+        return folders[activeFolder]?.includes(c.id)
+      }
+      // Иначе показываем чаты не в папках
+      const inAnyFolder = folderNames.some(f => folders[f]?.includes(c.id))
+      return !inAnyFolder
+    })
     .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       const aPin = pinnedIds.includes(a.id) ? 1 : 0
@@ -115,6 +140,9 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
       // Сохраняем порядок из store (уже отсортирован по времени)
       return 0
     })
+  
+  const archived = chats.filter((c) => archivedIds.includes(c.id))
+  const archivedUnread = archived.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
 
 
 
@@ -221,6 +249,12 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
           )}
         </button>
 
+        <button onClick={() => setShowFolders(v => !v)} className={`w-9 h-9 rounded-full flex items-center justify-center transition ${showFolders ? 'bg-primary text-white' : 'bg-chat hover:bg-sidebar-hover text-white'}`}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+        </button>
+
         <button onClick={() => setShowNewChat(true)} className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition">
 
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -252,23 +286,103 @@ export default function Sidebar({ onOpenAdmin, showAdmin, onOpenSettings, showSe
 
       {isSearching && <SearchPanel query={search} onClose={() => { setSearch(''); setSearchFocused(false) }} />}
 
+      {showFolders && (
+        <div className="px-4 py-2 border-b border-border">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-muted font-medium">Папки</p>
+            <button onClick={() => {
+              const name = prompt('Название папки:')
+              if (name && name.trim()) {
+                const newFolders = { ...folders, [name.trim()]: [] }
+                localStorage.setItem('chatFolders', JSON.stringify(newFolders))
+                setPinVersion(v => v + 1)
+              }
+            }} className="text-primary text-xs hover:underline">+ Создать</button>
+          </div>
+          <div className="space-y-1">
+            <button onClick={() => setActiveFolder(null)}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${!activeFolder ? 'bg-primary text-white' : 'text-white hover:bg-sidebar-hover'}`}>
+              📂 Все чаты
+            </button>
+            {folderNames.map(folder => {
+              const count = folders[folder]?.length || 0
+              return (
+                <div key={folder} className="flex items-center gap-1">
+                  <button onClick={() => setActiveFolder(folder)}
+                    className={`flex-1 text-left px-3 py-2 rounded-xl text-sm transition ${activeFolder === folder ? 'bg-primary text-white' : 'text-white hover:bg-sidebar-hover'}`}>
+                    📁 {folder} ({count})
+                  </button>
+                  <button onClick={() => {
+                    if (confirm(`Удалить папку "${folder}"?`)) {
+                      const newFolders = { ...folders }
+                      delete newFolders[folder]
+                      localStorage.setItem('chatFolders', JSON.stringify(newFolders))
+                      if (activeFolder === folder) setActiveFolder(null)
+                      setPinVersion(v => v + 1)
+                    }
+                  }} className="text-red-400 hover:text-red-300 px-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
-
-      <div className="flex-1 overflow-y-auto">
-
-        {!isSearching && filtered.length === 0 && <div className="text-center text-muted text-sm mt-10">Нет чатов</div>}
-
-        {!isSearching && filtered.map((chat) => (
-
-          <ChatItem key={chat.id} chat={chat} active={activeChat?.id === chat.id}
-            isPinned={pinnedIds.includes(chat.id)}
-            onClick={() => { setActiveChat(chat); clearUnread(chat.id) }}
-
-            onContextMenu={(e) => { e.preventDefault(); setContextMenu({ chat, x: e.clientX, y: e.clientY }) }} />
-
-        ))}
-
-      </div>
+      {showArchive ? (
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <button onClick={() => setShowArchive(false)} className="flex items-center gap-2 text-white hover:text-primary transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="font-medium text-sm">Архив</span>
+            </button>
+            <span className="text-xs text-muted">{archived.length} чатов</span>
+          </div>
+          {archived.length === 0 && <div className="text-center text-muted text-sm mt-10">Архив пуст</div>}
+          {archived.map((chat) => (
+            <ChatItem key={chat.id} chat={chat} active={activeChat?.id === chat.id}
+              isPinned={false}
+              onClick={() => { setActiveChat(chat); clearUnread(chat.id) }}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu({ chat, x: e.clientX, y: e.clientY }) }} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          {!isSearching && archived.length > 0 && (
+            <button onClick={() => setShowArchive(true)}
+              className="flex items-center justify-between w-full px-4 py-3 hover:bg-sidebar-hover transition border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-chat flex items-center justify-center">
+                  <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-sm text-white">Архив</p>
+                  <p className="text-xs text-muted">{archived.length} чатов</p>
+                </div>
+              </div>
+              {archivedUnread > 0 && (
+                <span className="bg-primary text-white text-xs rounded-full px-1.5 py-0.5">
+                  {archivedUnread}
+                </span>
+              )}
+            </button>
+          )}
+          {!isSearching && filtered.length === 0 && <div className="text-center text-muted text-sm mt-10">Нет чатов</div>}
+          {!isSearching && filtered.map((chat) => (
+            <ChatItem key={chat.id} chat={chat} active={activeChat?.id === chat.id}
+              isPinned={pinnedIds.includes(chat.id)}
+              onClick={() => { setActiveChat(chat); clearUnread(chat.id) }}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu({ chat, x: e.clientX, y: e.clientY }) }} />
+          ))}
+        </div>
+      )}
 
 
 
