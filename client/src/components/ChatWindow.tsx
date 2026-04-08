@@ -409,19 +409,34 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   }
 
   const sendVoiceMessage = async () => {
-    if (!isRecording || audioChunksRef.current.length === 0) return
+    if (!isRecording && audioChunksRef.current.length === 0) return
+    
+    // Останавливаем запись если она ещё идёт
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+    }
+    
+    // Ждём немного чтобы ondataavailable успел сработать
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    if (audioChunksRef.current.length === 0) {
+      setSendError('Нет данных для отправки')
+      setTimeout(() => setSendError(''), 3000)
+      setIsRecording(false)
+      return
+    }
     
     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
     const currentChat = useChatStore.getState().activeChat
     if (!currentChat) return
     
     setIsRecording(false)
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current)
-      recordingTimerRef.current = null
-    }
-    
     setUploading(true)
+    
     const form = new FormData()
     form.append('file', audioBlob, 'voice.webm')
     try {
