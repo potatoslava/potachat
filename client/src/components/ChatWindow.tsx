@@ -8,7 +8,6 @@ import type { Message } from '../types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useDropzone } from 'react-dropzone'
-import AvatarViewer from './AvatarViewer'
 import GroupInfoModal from './GroupInfoModal'
 import UserProfileModal from './UserProfileModal'
 
@@ -19,7 +18,6 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
-  const [showAvatarViewer, setShowAvatarViewer] = useState<string | null>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [showGroupInfo, setShowGroupInfo] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
@@ -515,7 +513,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
           onClick={() => {
             if (activeChat.type === 'private') {
               const otherId = activeChat.members?.find(m => m.id !== user?.id)?.id
-              if (otherId) setShowAvatarViewer(otherId)
+              if (otherId) setShowUserProfile(otherId)
             } else {
               setShowGroupInfo(true)
             }
@@ -914,13 +912,9 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
         )}
       </div>
     </div>
-    {showAvatarViewer && activeChat && (
-      <AvatarViewer
-        userId={showAvatarViewer}
-        name={activeChat.name}
-        onClose={() => setShowAvatarViewer(null)}
-      />
-    )}
+  </>
+  )
+}
     {showGroupInfo && activeChat && (
       <GroupInfoModal chat={activeChat} onClose={() => setShowGroupInfo(false)} />
     )}
