@@ -808,25 +808,30 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
               
               {isRecording ? (
                 <>
-                  <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-center gap-3">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
-                    <span className="text-sm text-white font-mono">{formatTime(recordingTime)}</span>
-                    <div className="flex-1 flex items-center gap-1">
-                      {[...Array(20)].map((_, i) => (
-                        <div key={i} className="flex-1 bg-primary/30 rounded-full" style={{ height: `${Math.random() * 20 + 4}px` }} />
+                  <div className="flex-1 bg-red-500/10 rounded-2xl px-4 py-3 flex items-center gap-3 border border-red-500/30">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                      <div className="absolute inset-0 w-3 h-3 bg-red-500 rounded-full animate-ping" />
+                    </div>
+                    <span className="text-base text-white font-mono font-semibold">{formatTime(recordingTime)}</span>
+                    <div className="flex-1 flex items-center justify-center gap-0.5 h-8">
+                      {[...Array(30)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className="w-1 bg-red-500 rounded-full transition-all duration-150" 
+                          style={{ 
+                            height: `${Math.sin((recordingTime * 3 + i) * 0.5) * 12 + 16}px`,
+                            opacity: 0.6 + Math.random() * 0.4
+                          }} 
+                        />
                       ))}
                     </div>
+                    <span className="text-xs text-red-400 flex-shrink-0">← Отпустите для отправки</span>
                   </div>
                   <button onClick={cancelRecording}
-                    className="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition flex-shrink-0">
-                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                  <button onClick={stopRecording}
-                    className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition flex-shrink-0">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    className="w-11 h-11 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition flex-shrink-0 border border-red-500/40">
+                    <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </>
@@ -857,8 +862,8 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                   ) : (
                     <button onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={cancelRecording}
                       onTouchStart={startRecording} onTouchEnd={stopRecording}
-                      className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition flex-shrink-0 active:scale-95">
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition-all flex-shrink-0 active:scale-110 active:bg-red-500 group">
+                      <svg className="w-5 h-5 text-white transition-transform group-active:scale-125" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                       </svg>
@@ -969,6 +974,111 @@ function renderFormattedText(text: string) {
 function extractLinks(text: string): string[] {
   const urlRegex = /(https?:\/\/[^\s]+)/g
   return text.match(urlRegex) || []
+}
+
+function VoiceMessagePlayer({ audioUrl }: { audioUrl: string }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handleLoadedMetadata = () => setDuration(audio.duration)
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleEnded = () => setIsPlaying(false)
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('ended', handleEnded)
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('ended', handleEnded)
+    }
+  }, [])
+
+  const togglePlay = () => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    if (isPlaying) {
+      audio.pause()
+    } else {
+      audio.play()
+    }
+    setIsPlaying(!isPlaying)
+  }
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const percentage = x / rect.width
+    audio.currentTime = percentage * duration
+  }
+
+  const toggleSpeed = () => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const speeds = [1, 1.5, 2]
+    const currentIndex = speeds.indexOf(playbackRate)
+    const nextSpeed = speeds[(currentIndex + 1) % speeds.length]
+    setPlaybackRate(nextSpeed)
+    audio.playbackRate = nextSpeed
+  }
+
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '0:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  return (
+    <div className="flex items-center gap-2 py-1 min-w-[200px] max-w-[280px]">
+      <audio ref={audioRef} src={audioUrl} />
+      
+      <button onClick={togglePlay}
+        className="w-8 h-8 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition flex-shrink-0">
+        {isPlaying ? (
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+          </svg>
+        ) : (
+          <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        )}
+      </button>
+
+      <div className="flex-1 flex flex-col gap-1">
+        <div className="relative h-1 bg-white/20 rounded-full cursor-pointer group" onClick={handleSeek}>
+          <div className="absolute inset-y-0 left-0 bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+          <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity" 
+            style={{ left: `calc(${progress}% - 6px)` }} />
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-white/80 font-mono">{formatTime(currentTime)}</span>
+          <span className="text-white/60 font-mono">{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      <button onClick={toggleSpeed}
+        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition flex-shrink-0">
+        <span className="text-xs text-white font-semibold">{playbackRate}x</span>
+      </button>
+    </div>
+  )
 }
 
 function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSelect, onReply, onEdit, onDelete, onImageClick, onForward }: {
@@ -1187,9 +1297,7 @@ function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSe
             onClick={(e) => { e.stopPropagation(); onImageClick(`/uploads/${msg.fileUrl}`) }} />}
           {isVideo && <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />}
           {msg.fileType === 'audio' && (
-            <div className="flex items-center gap-2 mb-1">
-              <audio src={`/uploads/${msg.fileUrl}`} controls className="flex-1" style={{ maxWidth: '250px' }} />
-            </div>
+            <VoiceMessagePlayer audioUrl={`/uploads/${msg.fileUrl}`} />
           )}
           {msg.fileType && !isImage && !isVideo && msg.fileType !== 'audio' && (
             <a href={`/uploads/${msg.fileUrl}`} download={msg.fileName} className="flex items-center gap-2 text-primary text-sm hover:underline mb-1">
