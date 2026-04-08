@@ -584,7 +584,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 relative messages-pattern">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 relative">
         {filteredMessages.map((msg, i) => (
           <MessageBubble
             key={msg.id}
@@ -772,7 +772,7 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                 )}
               </div>
               <button onClick={send} disabled={!text.trim() || uploading || sending}
-                className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0 animate-pulse-send hover:animate-none active:scale-95">
+                className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>

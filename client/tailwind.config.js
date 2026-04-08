@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#48B5FF',
-        'primary-dark': '#2688B5',
+        primary: '#2AABEE',
+        'primary-dark': '#1a8fd1',
         sidebar: 'var(--bg-sidebar)',
         'sidebar-hover': 'var(--bg-sidebar-hover)',
         chat: 'var(--bg-chat)',

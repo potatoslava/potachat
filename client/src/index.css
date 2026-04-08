@@ -9,17 +9,17 @@
 }
 
 :root {
-  --bg-main: #071521;
-  --bg-sidebar: #0E1F2F;
-  --bg-sidebar-hover: #163A4D;
-  --bg-header: #0F2130;
-  --bg-chat: #0E1C28;
-  --bg-input: #132B3B;
-  --bg-bubble-in: #172F3F;
-  --bg-bubble-out: #1D6F9C;
-  --text-primary: #D9ECFF;
-  --text-muted: #6C8EAE;
-  --border-color: #1C3A4F;
+  --bg-main: #0E1621;
+  --bg-sidebar: #17212B;
+  --bg-sidebar-hover: #202E3A;
+  --bg-header: #17212B;
+  --bg-chat: #0E1621;
+  --bg-input: #17212B;
+  --bg-bubble-in: #182533;
+  --bg-bubble-out: #2B5278;
+  --text-primary: #FFFFFF;
+  --text-muted: #8B98A5;
+  --border-color: #0F1419;
 }
 
 [data-theme="light"] {
@@ -60,77 +60,15 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0F2130;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2C6E9E;
-  border-radius: 10px;
+  background: #2AABEE44;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3A86B5;
-}
-
-/* Анимация появления сообщений */
-@keyframes messageSlide {
-  0% {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Пульсация кнопки отправки */
-@keyframes subtlePulse {
-  0% { 
-    box-shadow: 0 0 0 0 rgba(72, 181, 255, 0.4); 
-  }
-  70% { 
-    box-shadow: 0 0 0 8px rgba(72, 181, 255, 0); 
-  }
-  100% { 
-    box-shadow: 0 0 0 0 rgba(72, 181, 255, 0); 
-  }
-}
-
-.animate-message-slide {
-  animation: messageSlide 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
-}
-
-.animate-pulse-send {
-  animation: subtlePulse 2s infinite;
-}
-
-/* Фоновый паттерн для области сообщений */
-.messages-pattern {
-  background-image: radial-gradient(#133141 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-
-/* Улучшенные тени для карточек */
-.card-shadow {
-  box-shadow: 0 2px 8px rgba(0, 20, 40, 0.3);
-}
-
-.card-shadow-lg {
-  box-shadow: 0 4px 16px rgba(0, 20, 40, 0.4);
-}
-
-/* Градиентные аватары */
-.avatar-gradient {
-  background: linear-gradient(145deg, #1E6F9F, #0A4C6E);
-}
-
-.avatar-gradient-alt {
-  background: linear-gradient(135deg, #2575b0, #0d4e74);
-}
-
-/* Плавные переходы для интерактивных элементов */
-.smooth-transition {
-  transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  background: #2AABEE88;
 }
