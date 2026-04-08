@@ -198,10 +198,12 @@ function AppContent() {
       {/* Обёртка для десктопа с закруглением */}
       <div className="hidden md:flex items-center justify-center w-full h-full p-6">
         <div className="flex overflow-hidden rounded-[28px] shadow-[0_25px_45px_-12px_rgba(0,0,0,0.6),0_0_0_1px_rgba(72,181,255,0.2)] transition-shadow duration-300 hover:shadow-[0_30px_50px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(72,181,255,0.3)]" style={{ width: '1300px', maxWidth: '100%', height: '90vh', background: '#0C1C2C' }}>
-          <div className={`${hasRight ? 'hidden md:flex' : 'flex'} w-80`}>
+          {/* Сайдбар всегда виден на десктопе */}
+          <div className="w-80 flex-shrink-0">
             <Sidebar onOpenAdmin={openAdmin} showAdmin={showAdmin} onOpenSettings={openSettings} showSettings={showSettings} theme={theme} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
           </div>
-          <div className={`${hasRight ? 'flex' : 'hidden md:flex'} flex-1`}>
+          {/* Правая часть */}
+          <div className="flex-1">
             {showAdmin
               ? <AdminPage onClose={closeAdmin} />
               : showSettings
