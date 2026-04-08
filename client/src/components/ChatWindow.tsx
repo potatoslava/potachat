@@ -39,6 +39,11 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
   const [selfDestruct, setSelfDestruct] = useState<number>(0) // 0 = off, seconds otherwise
   const [showMediaFilter, setShowMediaFilter] = useState(false)
   const [mediaFilter, setMediaFilter] = useState<'all' | 'image' | 'video' | 'file'>('all')
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -361,6 +366,87 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
       setTimeout(() => setSendError(''), 3000)
     } finally { setUploading(false) }
   }, [addMessage, updateLastMessage])
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        stream.getTracks().forEach(track => track.stop())
+        
+        // Отправляем голосовое сообщение
+        const currentChat = useChatStore.getState().activeChat
+        if (!currentChat) return
+        
+        setUploading(true)
+        const form = new FormData()
+        form.append('file', audioBlob, 'voice.webm')
+        try {
+          const { data } = await api.post(`/chats/${currentChat.id}/messages/file`, form)
+          addMessage(currentChat.id, data)
+          updateLastMessage(currentChat.id, data)
+        } catch (e: any) {
+          setSendError(e.response?.data?.message || 'Ошибка отправки голосового')
+          setTimeout(() => setSendError(''), 3000)
+        } finally {
+          setUploading(false)
+        }
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+      setRecordingTime(0)
+      
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(t => t + 1)
+      }, 1000)
+    } catch (e) {
+      setSendError('Нет доступа к микрофону')
+      setTimeout(() => setSendError(''), 3000)
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+    }
+  }
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      const stream = mediaRecorderRef.current.stream
+      stream.getTracks().forEach(track => track.stop())
+      audioChunksRef.current = []
+      setIsRecording(false)
+      setRecordingTime(0)
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, noClick: true, noKeyboard: true })
 
@@ -719,27 +805,67 @@ export default function ChatWindow({ onBack }: { onBack?: () => void }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                 </svg>
               </label>
-              <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-end gap-2">
-                <textarea
-                  value={text}
-                  onChange={(e) => handleTextChange(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-                  placeholder="Сообщение..."
-                  rows={1}
-                  className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
-                />
-                {text.length > 3000 && (
-                  <span className={`text-xs flex-shrink-0 ${text.length > 4096 ? 'text-red-400' : 'text-muted'}`}>
-                    {text.length}/4096
-                  </span>
-                )}
-              </div>
-              <button onClick={send} disabled={!text.trim() || uploading || sending}
-                className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                </svg>
-              </button>
+              
+              {isRecording ? (
+                <>
+                  <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-center gap-3">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+                    <span className="text-sm text-white font-mono">{formatTime(recordingTime)}</span>
+                    <div className="flex-1 flex items-center gap-1">
+                      {[...Array(20)].map((_, i) => (
+                        <div key={i} className="flex-1 bg-primary/30 rounded-full" style={{ height: `${Math.random() * 20 + 4}px` }} />
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={cancelRecording}
+                    className="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition flex-shrink-0">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <button onClick={stopRecording}
+                    className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 bg-input rounded-2xl px-4 py-2 flex items-end gap-2">
+                    <textarea
+                      value={text}
+                      onChange={(e) => handleTextChange(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                      placeholder="Сообщение..."
+                      rows={1}
+                      className="flex-1 bg-transparent text-sm text-white placeholder-muted focus:outline-none resize-none max-h-32"
+                    />
+                    {text.length > 3000 && (
+                      <span className={`text-xs flex-shrink-0 ${text.length > 4096 ? 'text-red-400' : 'text-muted'}`}>
+                        {text.length}/4096
+                      </span>
+                    )}
+                  </div>
+                  {text.trim() ? (
+                    <button onClick={send} disabled={uploading || sending}
+                      className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark disabled:opacity-40 flex items-center justify-center transition flex-shrink-0">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <button onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={cancelRecording}
+                      onTouchStart={startRecording} onTouchEnd={stopRecording}
+                      className="w-10 h-10 rounded-full bg-primary hover:bg-primary-dark flex items-center justify-center transition flex-shrink-0 active:scale-95">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                      </svg>
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
@@ -1060,7 +1186,12 @@ function MessageBubble({ msg, isOwn, showAvatar, selectionMode, isSelected, onSe
           {isImage && <img src={`/uploads/${msg.fileUrl}`} className="rounded-xl max-w-full mb-1 cursor-zoom-in" alt={msg.fileName}
             onClick={(e) => { e.stopPropagation(); onImageClick(`/uploads/${msg.fileUrl}`) }} />}
           {isVideo && <video src={`/uploads/${msg.fileUrl}`} controls className="rounded-xl max-w-full mb-1" />}
-          {msg.fileType && !isImage && !isVideo && (
+          {msg.fileType === 'audio' && (
+            <div className="flex items-center gap-2 mb-1">
+              <audio src={`/uploads/${msg.fileUrl}`} controls className="flex-1" style={{ maxWidth: '250px' }} />
+            </div>
+          )}
+          {msg.fileType && !isImage && !isVideo && msg.fileType !== 'audio' && (
             <a href={`/uploads/${msg.fileUrl}`} download={msg.fileName} className="flex items-center gap-2 text-primary text-sm hover:underline mb-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
